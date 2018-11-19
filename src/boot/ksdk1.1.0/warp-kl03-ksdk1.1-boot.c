@@ -1,6 +1,6 @@
 /*
 	Authored 2016-2018. Phillip Stanley-Marbell.
-	
+
 	Additional contributions, 2018: Jan Heck.
 
 	All rights reserved.
@@ -125,7 +125,7 @@ void					enableTPS82740B(uint16_t voltageMillivolts);
 void					setTPS82740CommonControlLines(uint16_t voltageMillivolts);
 void					printPinDirections(void);
 void					dumpProcessorState(void);
-void					repeatRegisterReadForDeviceAndAddress(WarpSensorDevice warpSensorDevice, uint8_t baseAddress, 
+void					repeatRegisterReadForDeviceAndAddress(WarpSensorDevice warpSensorDevice, uint8_t baseAddress,
 								uint16_t pullupValue, bool autoIncrement, int chunkReadsPerAddress, bool chatty,
 								int spinDelay, int repetitionsPerAddress, uint16_t sssupplyMillivolts,
 								uint16_t adaptiveSssupplyMaxMillivolts, uint8_t referenceByte);
@@ -338,7 +338,7 @@ enableI2Cpins(uint16_t pullupValue)
 void
 disableI2Cpins(void)
 {
-	I2C_DRV_MasterDeinit(0 /* I2C instance */);	
+	I2C_DRV_MasterDeinit(0 /* I2C instance */);
 
 
 	/*	Warp KL03_I2C0_SCL	--> PTB3	(GPIO)			*/
@@ -397,7 +397,7 @@ lowPowerPinStates(void)
 	PORT_HAL_SetMuxMode(PORTA_BASE, 7, kPortMuxAsGpio);
 	PORT_HAL_SetMuxMode(PORTA_BASE, 8, kPortMuxAsGpio);
 	PORT_HAL_SetMuxMode(PORTA_BASE, 9, kPortMuxAsGpio);
-	
+
 	/*
 	 *	NOTE: The KL03 has no PTA10 or PTA11
 	 */
@@ -410,7 +410,7 @@ lowPowerPinStates(void)
 	 *			PORT B
 	 */
 	PORT_HAL_SetMuxMode(PORTB_BASE, 0, kPortMuxAsGpio);
-	
+
 	/*
 	 *	PTB1 is connected to KL03_VDD. We have a choice of:
 	 *		(1) Keep 'disabled as analog'.
@@ -451,7 +451,7 @@ lowPowerPinStates(void)
 	/*
 	 *	NOTE: The KL03 has no PTB12
 	 */
-	
+
 	PORT_HAL_SetMuxMode(PORTB_BASE, 13, kPortMuxAsGpio);
 
 
@@ -459,9 +459,9 @@ lowPowerPinStates(void)
 	/*
 	 *	Now, set all the pins (except kWarpPinKL03_VDD_ADC, the SWD pins, and the XTAL/EXTAL) to 0
 	 */
-	
-	
-	
+
+
+
 	/*
 	 *	If we are in mode where we disable the ADC, then drive the pin high since it is tied to KL03_VDD
 	 */
@@ -469,7 +469,7 @@ lowPowerPinStates(void)
 	{
 		GPIO_DRV_SetPinOutput(kWarpPinKL03_VDD_ADC);
 	}
-	
+
 #ifdef WARP_FRDMKL03
 	GPIO_DRV_ClearPinOutput(kWarpPinPAN1323_nSHUTD);
 #else
@@ -509,7 +509,7 @@ lowPowerPinStates(void)
 	 *	In revB board, with the ISL23415 DCP pullups, we also
 	 *	want I2C_SCL and I2C_SDA driven high since when we
 	 *	send a shutdown command to the DCP it will connect
-	 *	those lines to 25570_VOUT. 
+	 *	those lines to 25570_VOUT.
 	 *
 	 *	For now, we therefore leave the SPI pins low and the
 	 *	I2C pins (PTB3, PTB4, which are true open-drain) disabled.
@@ -593,7 +593,7 @@ enableTPS82740B(uint16_t voltageMillivolts)
 }
 
 
-void	
+void
 setTPS82740CommonControlLines(uint16_t voltageMillivolts)
 {
 	/*
@@ -611,7 +611,7 @@ setTPS82740CommonControlLines(uint16_t voltageMillivolts)
 			GPIO_DRV_ClearPinOutput(kWarpPinTPS82740_VSEL1);
 			GPIO_DRV_ClearPinOutput(kWarpPinTPS82740_VSEL2);
 			GPIO_DRV_ClearPinOutput(kWarpPinTPS82740_VSEL3);
-			
+
 			break;
 		}
 
@@ -621,7 +621,7 @@ setTPS82740CommonControlLines(uint16_t voltageMillivolts)
 			GPIO_DRV_SetPinOutput(kWarpPinTPS82740_VSEL1);
 			GPIO_DRV_ClearPinOutput(kWarpPinTPS82740_VSEL2);
 			GPIO_DRV_ClearPinOutput(kWarpPinTPS82740_VSEL3);
-			
+
 			break;
 		}
 
@@ -631,7 +631,7 @@ setTPS82740CommonControlLines(uint16_t voltageMillivolts)
 			GPIO_DRV_ClearPinOutput(kWarpPinTPS82740_VSEL1);
 			GPIO_DRV_SetPinOutput(kWarpPinTPS82740_VSEL2);
 			GPIO_DRV_ClearPinOutput(kWarpPinTPS82740_VSEL3);
-			
+
 			break;
 		}
 
@@ -641,7 +641,7 @@ setTPS82740CommonControlLines(uint16_t voltageMillivolts)
 			GPIO_DRV_SetPinOutput(kWarpPinTPS82740_VSEL1);
 			GPIO_DRV_SetPinOutput(kWarpPinTPS82740_VSEL2);
 			GPIO_DRV_ClearPinOutput(kWarpPinTPS82740_VSEL3);
-			
+
 			break;
 		}
 
@@ -651,7 +651,7 @@ setTPS82740CommonControlLines(uint16_t voltageMillivolts)
 			GPIO_DRV_ClearPinOutput(kWarpPinTPS82740_VSEL1);
 			GPIO_DRV_ClearPinOutput(kWarpPinTPS82740_VSEL2);
 			GPIO_DRV_SetPinOutput(kWarpPinTPS82740_VSEL3);
-			
+
 			break;
 		}
 
@@ -661,7 +661,7 @@ setTPS82740CommonControlLines(uint16_t voltageMillivolts)
 			GPIO_DRV_SetPinOutput(kWarpPinTPS82740_VSEL1);
 			GPIO_DRV_ClearPinOutput(kWarpPinTPS82740_VSEL2);
 			GPIO_DRV_SetPinOutput(kWarpPinTPS82740_VSEL3);
-			
+
 			break;
 		}
 
@@ -671,7 +671,7 @@ setTPS82740CommonControlLines(uint16_t voltageMillivolts)
 			GPIO_DRV_ClearPinOutput(kWarpPinTPS82740_VSEL1);
 			GPIO_DRV_SetPinOutput(kWarpPinTPS82740_VSEL2);
 			GPIO_DRV_SetPinOutput(kWarpPinTPS82740_VSEL3);
-			
+
 			break;
 		}
 
@@ -681,7 +681,7 @@ setTPS82740CommonControlLines(uint16_t voltageMillivolts)
 			GPIO_DRV_SetPinOutput(kWarpPinTPS82740_VSEL1);
 			GPIO_DRV_SetPinOutput(kWarpPinTPS82740_VSEL2);
 			GPIO_DRV_SetPinOutput(kWarpPinTPS82740_VSEL3);
-			
+
 			break;
 		}
 
@@ -727,7 +727,7 @@ disableSssupply(void)
 {
 	disableTPS82740A();
 	disableTPS82740B();
-	
+
 	/*
 	 *	Clear the pin. This sets the TS5A3154 to use the output of the TPS82740B,
 	 *	which shouldn't matter in any case. The main objective here is to clear
@@ -970,13 +970,13 @@ main(void)
 
 	warpPowerModeVlpwConfig = warpPowerModeVlprConfig;
 	warpPowerModeVlpwConfig.mode = kPowerManagerVlpw;
-	
+
 	warpPowerModeVlpsConfig = warpPowerModeVlprConfig;
 	warpPowerModeVlpsConfig.mode = kPowerManagerVlps;
-	
+
 	warpPowerModeWaitConfig = warpPowerModeVlprConfig;
 	warpPowerModeWaitConfig.mode = kPowerManagerWait;
-	
+
 	warpPowerModeStopConfig = warpPowerModeVlprConfig;
 	warpPowerModeStopConfig.mode = kPowerManagerStop;
 
@@ -1013,7 +1013,7 @@ main(void)
 	 *	See also Section 30.3.3 GPIO Initialization of KSDK13APIRM.pdf
 	 */
 	GPIO_DRV_Init(inputPins  /* input pins */, outputPins  /* output pins */);
-	
+
 	/*
 	 *	Note that it is lowPowerPinStates() that sets the pin mux mode,
 	 *	so until we call it pins are in their default state.
@@ -1058,6 +1058,9 @@ main(void)
 	initAMG8834(	0x3A	/* i2cAddress */,	&deviceAMG8834State	);
 	initAS7262(	0x49	/* i2cAddress */,	&deviceAS7262State	);
 	initAS7263(	0x49	/* i2cAddress */,	&deviceAS7263State	);
+	initINA219(	0x49	/* i2cAddress */,	&deviceAS7263State	);
+
+	writeByteToI2cDeviceRegister
 
 
 
@@ -1114,7 +1117,7 @@ main(void)
 
 		SEGGER_RTT_WriteString(0, "\r\n\n\n\n[ *\t\t\t\tW\ta\tr\tp\t(rev. b)\t\t\t* ]\n");
 		SEGGER_RTT_WriteString(0, "\r[  \t\t\t\t    Cambridge / Physcomplab / PSM\t\t\t\t  ]\n\n");
-		
+
 		SEGGER_RTT_printf(0, "\r\tSupply=%dmV,\tDefault Target Read Register=0x%02x\n",
 								menuSupplyVoltage, menuRegisterAddress);
 		SEGGER_RTT_printf(0, "\r\tI2C=%dkb/s,\tSPI=%dkb/s,\tUART=%dkb/s,\tI2C Pull-Up=%d\n\n",
@@ -1179,6 +1182,7 @@ main(void)
 				SEGGER_RTT_WriteString(0, "\r\t- 'h' AMG8834			(0x00--?): ?V  -- ?V\n");
 				SEGGER_RTT_WriteString(0, "\r\t- 'j' AS7262			(0x00--0x2B): 2.7V -- 3.6V\n");
 				SEGGER_RTT_WriteString(0, "\r\t- 'k' AS7263			(0x00--0x2B): 2.7V -- 3.6V\n");
+				SEGGER_RTT_WriteString(0, "\r\t- 'l' IN219			(0x00--0x2B): 2.7V -- 3.6V\n");
 				SEGGER_RTT_WriteString(0, "\r\tEnter selection> ");
 
 				key = SEGGER_RTT_WaitKey();
@@ -1311,6 +1315,13 @@ main(void)
 						break;
 					}
 
+					case 'l':
+					{
+						menuTargetSensor = kWarpSensorINA219;
+
+						break;
+					}
+
 					default:
 					{
 						SEGGER_RTT_printf(0, "\r\tInvalid selection '%c' !\n", key);
@@ -1394,7 +1405,7 @@ main(void)
 				uint8_t		i2cAddress, payloadByte[1], commandByte[1];
 				i2c_status_t	i2cStatus;
 				WarpStatus	status;
-	
+
 
 				SEGGER_RTT_WriteString(0, "\r\n\tEnter I2C addr. (e.g., '0f') or '99' for SPI > ");
 				i2cAddress = readHexByte();
@@ -1486,7 +1497,7 @@ main(void)
 				SEGGER_RTT_WriteString(0, "\r\n\tDefault pullup enable value in kiloOhms (e.g., '0000')> ");
 				menuI2cPullupValue = read4digits();
 				SEGGER_RTT_printf(0, "\r\n\tI2cPullupValue set to %d\n", menuI2cPullupValue);
-				
+
 				break;
 			}
 
@@ -1525,7 +1536,7 @@ main(void)
 				SEGGER_RTT_printf(0, "\r\n\tRepeating dev%d @ 0x%02x, reps=%d, pull=%d, delay=%dms:\n\n",
 					menuTargetSensor, menuRegisterAddress, repetitionsPerAddress, menuI2cPullupValue, spinDelay);
 
-				repeatRegisterReadForDeviceAndAddress(	menuTargetSensor /*warpSensorDevice*/, 
+				repeatRegisterReadForDeviceAndAddress(	menuTargetSensor /*warpSensorDevice*/,
 									menuRegisterAddress /*baseAddress */,
 									menuI2cPullupValue,
 									autoIncrement /*autoIncrement*/,
@@ -1796,7 +1807,7 @@ loopForSensor(	const char *  tagString,
 		if (address > maxAddress || !autoIncrement)
 		{
 			/*
-			 *	We either iterated over all possible addresses, or were asked to do only 
+			 *	We either iterated over all possible addresses, or were asked to do only
 			 *	one address anyway (i.e. don't increment), so we're done.
 			 */
 			break;
@@ -1871,6 +1882,30 @@ repeatRegisterReadForDeviceAndAddress(WarpSensorDevice warpSensorDevice, uint8_t
 					baseAddress,			/*	baseAddress			*/
 					0x00,				/*	minAddress			*/
 					0x31,				/*	maxAddress			*/
+					repetitionsPerAddress,		/*	repetitionsPerAddress		*/
+					chunkReadsPerAddress,		/*	chunkReadsPerAddress		*/
+					spinDelay,			/*	spinDelay			*/
+					autoIncrement,			/*	autoIncrement			*/
+					sssupplyMillivolts,		/*	sssupplyMillivolts		*/
+					referenceByte,			/*	referenceByte			*/
+					adaptiveSssupplyMaxMillivolts,	/*	adaptiveSssupplyMaxMillivolts	*/
+					chatty				/*	chatty				*/
+					);
+			break;
+		}
+
+		case kWarpSensorINA219:
+		{
+			/*
+			 *INA219: VDD 1.95--3.6
+			 */
+			loopForSensor(	"\r\nINA219:\n\r",		/*	tagString			*/
+					&readSensorRegisterINA219,	/*	readSensorRegisterFunction	*/
+					&deviceINA219State,		/*	i2cDeviceState			*/
+					NULL,				/*	spiDeviceState			*/
+					baseAddress,			/*	baseAddress			*/
+					0x00,				/*	minAddress			*/
+					0x05,				/*	maxAddress			*/
 					repetitionsPerAddress,		/*	repetitionsPerAddress		*/
 					chunkReadsPerAddress,		/*	chunkReadsPerAddress		*/
 					spinDelay,			/*	spinDelay			*/
@@ -2297,7 +2332,7 @@ int
 read4digits(void)
 {
 	uint8_t		digit1, digit2, digit3, digit4;
-	
+
 	digit1 = SEGGER_RTT_WaitKey();
 	digit2 = SEGGER_RTT_WaitKey();
 	digit3 = SEGGER_RTT_WaitKey();
@@ -2348,14 +2383,14 @@ writeBytesToSpi(uint8_t *  payloadBytes, int payloadLength)
 {
 	uint8_t		inBuffer[payloadLength];
 	spi_status_t	status;
-	
+
 	enableSPIpins();
 	status = SPI_DRV_MasterTransferBlocking(0		/* master instance */,
 						NULL		/* spi_master_user_config_t */,
 						payloadBytes,
 						inBuffer,
 						payloadLength	/* transfer size */,
-						1000		/* timeout in microseconds (unlike I2C which is ms) */);					
+						1000		/* timeout in microseconds (unlike I2C which is ms) */);
 	disableSPIpins();
 
 	return (status == kStatus_SPI_Success ? kWarpStatusOK : kWarpStatusCommsError);
