@@ -65,8 +65,9 @@
 
 
 volatile WarpUARTDeviceState		devicePAN1326BState;
-volatile WarpI2CDeviceState		  deviceINA219State;
 volatile WarpUARTDeviceState		devicePAN1323ETUState;
+
+volatile WarpI2CDeviceState		  deviceINA219State;
 
 /*
  *	TODO: move this and possibly others into a global structure
@@ -795,13 +796,6 @@ dumpProcessorState(void)
 int
 main(void)
 {
-	uint8_t					key;
-	WarpSensorDevice			menuTargetSensor = kWarpSensorADXL362;
-	uint16_t				menuI2cPullupValue = 32768;
-	uint8_t					menuRegisterAddress = 0x00;
-	uint16_t				menuSupplyVoltage = 0;
-
-
 	rtc_datetime_t				warpBootDate;
 
 	power_manager_user_config_t		warpPowerModeWaitConfig;
