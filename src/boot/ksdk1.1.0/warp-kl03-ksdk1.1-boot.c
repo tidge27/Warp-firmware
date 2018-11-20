@@ -56,6 +56,7 @@
 
 
 #include "devINA219.h"
+#include "devSSD1331.h"
 
 
 #define					kWarpConstantStringI2cFailure		"\rI2C failed, reg 0x%02x, code %d\n"
@@ -110,6 +111,7 @@ int					read4digits(void);
  *	TODO: change the following to take byte arrays
  */
 WarpStatus				writeByteToI2cDeviceRegister(uint8_t i2cAddress, bool sendCommandByte, uint8_t commandByte, bool sendPayloadByte, uint8_t payloadByte);
+WarpStatus        writeBytesToI2cDeviceRegister(uint8_t i2cAddress, bool sendCommandByte, uint8_t commandByte, bool sendPayloadByte, uint8_t *  payloadBytes, int payloadLength);
 WarpStatus				writeBytesToSpi(uint8_t *  payloadBytes, int payloadLength);
 
 
@@ -1003,45 +1005,20 @@ main(void)
 	/*
 	 *	Initialize all the sensors
 	 */
-	initINA219(	0x49	/* i2cAddress */,	&deviceINA219State	);
+	 SEGGER_RTT_WriteString(0, "Before");
+	initINA219(	0x40	/* i2cAddress */,	&deviceINA219State	);
+		devSSD1331init();
+SEGGER_RTT_WriteString(0, "After");
 
 
-
-
-	/*
-	 *	Initialization: Devices hanging off SPI
-	 */
-
-
-
-
-	/*
-	 *	Power down all sensors:
-	 */
-
-
-
-	/*
-	 *	Initialization: the PAN1326, generating its 32k clock
-	 */
-	//Disable for now
 	//initPAN1326B(&devicePAN1326BState);
 #ifdef WARP_PAN1323ETU
 	initPAN1323ETU(&devicePAN1323ETUState);
 #endif
 
+SEGGER_RTT_WriteString(0, "After1");
 
-
-	/*
-	 *	Make sure SCALED_SENSOR_SUPPLY is off
-	 */
 	disableSssupply();
-
-
-	/*
-	 *	TODO: initialize the kWarpPinKL03_VDD_ADC, write routines to read the VDD and temperature
-	 */
-
 
 	/*
 	 *	Wait for supply and pull-ups to settle.
@@ -1050,8 +1027,31 @@ main(void)
 
 
 
-	while (1)
-	{}
+	// while (1)
+	// {
+		SEGGER_RTT_WriteString(0, "loopy\n");
+
+		enableI2Cpins(65535 /* pullupValue*/);
+		readSensorRegisterINA219(0x00);
+		// Check this is fine, should output 399F
+		disableI2Cpins();
+
+		uint8_t		configBuffer[2]= {0x01, 0x9F};
+		uint8_t		calibBuffer[2]= {0x20, 0x00};
+		writeBytesToI2cDeviceRegister(0x40, true, 0x00, true, configBuffer, 2);
+		writeBytesToI2cDeviceRegister(0x40, true, 0x05, true, calibBuffer, 2);
+
+		while (1)
+		{
+			enableI2Cpins(65535 /* pullupValue*/);
+			readSensorRegisterINA219(0x04);
+			disableI2Cpins();
+			uint32_t milliamps = (deviceINA219State.i2cBuffer[1] | deviceINA219State.i2cBuffer[0] << 8) / 20;
+			SEGGER_RTT_printf(0, "current:	%dmA\n", milliamps);
+			OSA_TimeDelay(1000);
+		}
+
+	// }
 
 	return 0;
 }
@@ -1286,6 +1286,40 @@ writeByteToI2cDeviceRegister(uint8_t i2cAddress, bool sendCommandByte, uint8_t c
 						(sendCommandByte ? 1 : 0),
 						payloadBuffer,
 						(sendPayloadByte ? 1 : 0),
+						1000	/* timeout in milliseconds */);
+	disableI2Cpins();
+
+	return (status == kStatus_I2C_Success ? kWarpStatusOK : kWarpStatusDeviceCommunicationFailed);
+}
+
+
+WarpStatus
+writeBytesToI2cDeviceRegister(uint8_t i2cAddress, bool sendCommandByte, uint8_t commandByte, bool sendPayloadByte, uint8_t *  payloadBytes, int payloadLength)
+{
+	i2c_status_t	status;
+	uint8_t		commandBuffer[1];
+	uint8_t		payloadBuffer[payloadLength];
+	i2c_device_t	i2cSlaveConfig =
+			{
+				.address = i2cAddress,
+				.baudRate_kbps = gWarpI2cBaudRateKbps
+			};
+
+	commandBuffer[0] = commandByte;
+	// payloadBuffer[0] = payloadByte;
+
+	/*
+	 *	TODO: Need to appropriately set the pullup value here
+	 */
+	enableI2Cpins(65535 /* pullupValue*/);
+
+	status = I2C_DRV_MasterSendDataBlocking(
+						0	/* instance */,
+						&i2cSlaveConfig,
+						commandBuffer,
+						(sendCommandByte ? 1 : 0),
+						payloadBytes,
+						payloadLength,
 						1000	/* timeout in milliseconds */);
 	disableI2Cpins();
 

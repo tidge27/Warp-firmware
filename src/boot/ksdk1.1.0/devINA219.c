@@ -66,27 +66,27 @@ initINA219(const uint8_t i2cAddress, WarpI2CDeviceState volatile *  deviceStateP
 						kWarpTypeMaskTemperature
 					);
 
-	uint8_t cmdBuf[1]	= {0xFF};
-	uint8_t txBuf[2]	= {0xFF, 0xFF};
-	i2c_status_t		returnValue;
-
-
-	i2c_device_t slave =
-	{
-		.address = deviceINA219State.i2cAddress,
-		.baudRate_kbps = gWarpI2cBaudRateKbps
-	};
-	txBuf[0] = 0x00;
-	txBuf[1] = 0x20;
-	cmdBuf[0] = 0x05;
-	returnValue = I2C_DRV_MasterSendDataBlocking(
-							0 /* I2C peripheral instance */,
-							&slave,
-							cmdBuf,
-							1,
-							txBuf,
-							2,
-							100 /* timeout in milliseconds */);
+	// uint8_t cmdBuf[1]	= {0xFF};
+	// uint8_t txBuf[2]	= {0xFF, 0xFF};
+	// i2c_status_t		returnValue;
+	//
+	//
+	// i2c_device_t slave =
+	// {
+	// 	.address = deviceINA219State.i2cAddress,
+	// 	.baudRate_kbps = gWarpI2cBaudRateKbps
+	// };
+	// txBuf[0] = 0x01;
+	// txBuf[1] = 0x9F;
+	// cmdBuf[0] = 0x00;
+	// returnValue = I2C_DRV_MasterSendDataBlocking(
+	// 						0 /* I2C peripheral instance */,
+	// 						&slave,
+	// 						cmdBuf,
+	// 						1,
+	// 						txBuf,
+	// 						2,
+	// 						100 /* timeout in milliseconds */);
 
 	return;
 }
@@ -98,31 +98,21 @@ readSensorRegisterINA219(uint8_t deviceRegister)
 	i2c_status_t		returnValue;
 
 
-	// switch (deviceRegister)
-	// {
-	// 	case 0x00: case 0x01: case 0x02: case 0x03:
-	// 	case 0x04: case 0x05: case 0x06: case 0x09:
-	// 	case 0x0a: case 0x0b: case 0x0c: case 0x0d:
-	// 	case 0x0e: case 0x0f: case 0x10: case 0x11:
-	// 	case 0x12: case 0x13: case 0x14: case 0x15:
-	// 	case 0x16: case 0x17: case 0x18: case 0x1d:
-	// 	case 0x1e: case 0x1f: case 0x20: case 0x21:
-	// 	case 0x22: case 0x23: case 0x24: case 0x25:
-	// 	case 0x26: case 0x27: case 0x28: case 0x29:
-	// 	case 0x2a: case 0x2b: case 0x2c: case 0x2d:
-	// 	case 0x2e: case 0x2f: case 0x30: case 0x31:
-	// 	{
-	// 		/* OK */
-	// 		break;
-	// 	}
-	//
-	// 	default:
-	// 	{
-	// 		//SEGGER_RTT_printf(0, "\rreadSensorRegisterINA219() received bad deviceRegister\n");
-	//
-	// 		return kWarpStatusBadDeviceCommand;
-	// 	}
-	// }
+	switch (deviceRegister)
+	{
+		case 0x00: case 0x01: case 0x02: case 0x03:
+		case 0x04: case 0x05:
+		{
+			/* OK */
+			break;
+		}
+
+		default:
+		{
+			//SEGGER_RTT_printf(0, "\rreadSensorRegisterINA219() received bad deviceRegister\n");
+			return kWarpStatusBadDeviceCommand;
+		}
+	}
 
 	i2c_device_t slave =
 	{
@@ -139,14 +129,14 @@ readSensorRegisterINA219(uint8_t deviceRegister)
 							cmdBuf,
 							1,
 							(uint8_t *)deviceINA219State.i2cBuffer,
-							1,
+							2,
 							500 /* timeout in milliseconds */);
 
-	//SEGGER_RTT_printf(0, "\nI2C_DRV_MasterReceiveData returned [%d] (read register)\n", returnValue);
+	SEGGER_RTT_printf(0, "\nI2C_DRV_MasterReceiveData returned [%d] (read register)\n", returnValue);
 
 	if (returnValue == kStatus_I2C_Success)
 	{
-		//SEGGER_RTT_printf(0, "\r[0x%02x]	0x%02x\n", cmdBuf[0], deviceINA219State.i2cBuffer[0]);
+		SEGGER_RTT_printf(0, "\r[0x%02x]	0x%02x%02x\n", cmdBuf[0], deviceINA219State.i2cBuffer[0], deviceINA219State.i2cBuffer[1]);
 	}
 	else
 	{
