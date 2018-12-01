@@ -132,11 +132,11 @@ readSensorRegisterINA219(uint8_t deviceRegister)
 							2,
 							500 /* timeout in milliseconds */);
 
-	SEGGER_RTT_printf(0, "\nI2C_DRV_MasterReceiveData returned [%d] (read register)\n", returnValue);
+	// SEGGER_RTT_printf(0, "\nI2C_DRV_MasterReceiveData returned [%d] (read register)\n", returnValue);
 
 	if (returnValue == kStatus_I2C_Success)
 	{
-		SEGGER_RTT_printf(0, "\r[0x%02x]	0x%02x%02x\n", cmdBuf[0], deviceINA219State.i2cBuffer[0], deviceINA219State.i2cBuffer[1]);
+		// SEGGER_RTT_printf(0, "\r[0x%02x]	0x%02x%02x\n", cmdBuf[0], deviceINA219State.i2cBuffer[0], deviceINA219State.i2cBuffer[1]);
 	}
 	else
 	{

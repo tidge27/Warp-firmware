@@ -1041,6 +1041,23 @@ SEGGER_RTT_WriteString(0, "After1");
 		writeBytesToI2cDeviceRegister(0x40, true, 0x00, true, configBuffer, 2);
 		writeBytesToI2cDeviceRegister(0x40, true, 0x05, true, calibBuffer, 2);
 
+
+		for( uint32_t i = 0; i < 1000; i = i + 1 ){
+			SEGGER_RTT_printf(0, "%d, ", i);
+		}
+		SEGGER_RTT_printf(0, "\n");
+		for( uint32_t a = 0; a < 1000; a = a + 1 ){
+			enableI2Cpins(65535 /* pullupValue*/);
+			readSensorRegisterINA219(0x04);
+			disableI2Cpins();
+			uint32_t microamps = (deviceINA219State.i2cBuffer[1] | deviceINA219State.i2cBuffer[0] << 8) * 50;
+			SEGGER_RTT_printf(0, "%d, ", microamps);
+   }
+	 SEGGER_RTT_printf(0, "\n");
+
+
+
+
 		while (1)
 		{
 			enableI2Cpins(65535 /* pullupValue*/);
