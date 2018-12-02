@@ -260,7 +260,7 @@ int devSSD1331striperect(void)
 	return 0;
 }
 
-int devSSD1331printDigit(int digit)
+int devSSD1331printDigit(int digit, int x, int y)
 {
 	SEGGER_RTT_WriteString(0, "\r\n\tprint digit\n");
 	// uint8_t imageBuffer[768];
@@ -279,12 +279,12 @@ const uint8_t numBuffer[10][48] = {
 };
 SEGGER_RTT_WriteString(0, "\r\n\tSetup zero\n");
 writeCommand(kSSD1331CommandSETCOLUMN);
-writeCommand(0x10);
-writeCommand(0x1F);
+writeCommand(x);
+writeCommand(x + 0x0F);
 // Set the columns to scan over
 writeCommand(kSSD1331CommandSETROW);
-writeCommand(0x10);
-writeCommand(0x30);
+writeCommand(y);
+writeCommand(y + 0x17);
 uint8_t maskbit = 0x00;
 for (int row = 0; row < 24; row++)
 {
