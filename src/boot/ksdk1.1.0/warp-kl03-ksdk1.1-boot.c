@@ -250,7 +250,7 @@ enableSPIpins(void)
 	spiUserConfig.polarity		= kSpiClockPolarity_ActiveHigh;
 	spiUserConfig.phase		= kSpiClockPhase_FirstEdge;
 	spiUserConfig.direction		= kSpiMsbFirst;
-	spiUserConfig.bitsPerSec	= gWarpSpiBaudRateKbps * 1000;
+	spiUserConfig.bitsPerSec	= gWarpSpiBaudRateKbps * 100000;
 	SPI_DRV_MasterInit(0 /* SPI master instance */, (spi_master_state_t *)&spiMasterState);
 	SPI_DRV_MasterConfigureBus(0 /* SPI master instance */, (spi_master_user_config_t *)&spiUserConfig, &calculatedBaudRate);
 }
@@ -514,222 +514,6 @@ lowPowerPinStates(void)
 	//GPIO_DRV_SetPinOutput(kWarpPinSPI_MOSI);
 }
 
-
-
-void
-disableTPS82740A(void)
-{
-	GPIO_DRV_ClearPinOutput(kWarpPinTPS82740A_CTLEN);
-}
-
-void
-disableTPS82740B(void)
-{
-	GPIO_DRV_ClearPinOutput(kWarpPinTPS82740B_CTLEN);
-}
-
-
-void
-enableTPS82740A(uint16_t voltageMillivolts)
-{
-	setTPS82740CommonControlLines(voltageMillivolts);
-	GPIO_DRV_SetPinOutput(kWarpPinTPS82740A_CTLEN);
-	GPIO_DRV_ClearPinOutput(kWarpPinTPS82740B_CTLEN);
-
-	/*
-	 *	Select the TS5A3154 to use the output of the TPS82740
-	 *
-	 *		IN = high selects the output of the TPS82740B:
-	 *		IN = low selects the output of the TPS82740A:
-	 */
-	GPIO_DRV_ClearPinOutput(kWarpPinTS5A3154_IN);
-}
-
-
-void
-enableTPS82740B(uint16_t voltageMillivolts)
-{
-	setTPS82740CommonControlLines(voltageMillivolts);
-	GPIO_DRV_ClearPinOutput(kWarpPinTPS82740A_CTLEN);
-	GPIO_DRV_SetPinOutput(kWarpPinTPS82740B_CTLEN);
-
-	/*
-	 *	Select the TS5A3154 to use the output of the TPS82740
-	 *
-	 *		IN = high selects the output of the TPS82740B:
-	 *		IN = low selects the output of the TPS82740A:
-	 */
-	GPIO_DRV_SetPinOutput(kWarpPinTS5A3154_IN);
-}
-
-
-void
-setTPS82740CommonControlLines(uint16_t voltageMillivolts)
-{
-	/*
-	 *	 From Manual:
-	 *
-	 *		TPS82740A:	VSEL1 VSEL2 VSEL3:	000-->1.8V, 111-->2.5V
-	 *		TPS82740B:	VSEL1 VSEL2 VSEL3:	000-->2.6V, 111-->3.3V
-	 */
-
-	switch(voltageMillivolts)
-	{
-		case 2600:
-		case 1800:
-		{
-			GPIO_DRV_ClearPinOutput(kWarpPinTPS82740_VSEL1);
-			GPIO_DRV_ClearPinOutput(kWarpPinTPS82740_VSEL2);
-			GPIO_DRV_ClearPinOutput(kWarpPinTPS82740_VSEL3);
-
-			break;
-		}
-
-		case 2700:
-		case 1900:
-		{
-			GPIO_DRV_SetPinOutput(kWarpPinTPS82740_VSEL1);
-			GPIO_DRV_ClearPinOutput(kWarpPinTPS82740_VSEL2);
-			GPIO_DRV_ClearPinOutput(kWarpPinTPS82740_VSEL3);
-
-			break;
-		}
-
-		case 2800:
-		case 2000:
-		{
-			GPIO_DRV_ClearPinOutput(kWarpPinTPS82740_VSEL1);
-			GPIO_DRV_SetPinOutput(kWarpPinTPS82740_VSEL2);
-			GPIO_DRV_ClearPinOutput(kWarpPinTPS82740_VSEL3);
-
-			break;
-		}
-
-		case 2900:
-		case 2100:
-		{
-			GPIO_DRV_SetPinOutput(kWarpPinTPS82740_VSEL1);
-			GPIO_DRV_SetPinOutput(kWarpPinTPS82740_VSEL2);
-			GPIO_DRV_ClearPinOutput(kWarpPinTPS82740_VSEL3);
-
-			break;
-		}
-
-		case 3000:
-		case 2200:
-		{
-			GPIO_DRV_ClearPinOutput(kWarpPinTPS82740_VSEL1);
-			GPIO_DRV_ClearPinOutput(kWarpPinTPS82740_VSEL2);
-			GPIO_DRV_SetPinOutput(kWarpPinTPS82740_VSEL3);
-
-			break;
-		}
-
-		case 3100:
-		case 2300:
-		{
-			GPIO_DRV_SetPinOutput(kWarpPinTPS82740_VSEL1);
-			GPIO_DRV_ClearPinOutput(kWarpPinTPS82740_VSEL2);
-			GPIO_DRV_SetPinOutput(kWarpPinTPS82740_VSEL3);
-
-			break;
-		}
-
-		case 3200:
-		case 2400:
-		{
-			GPIO_DRV_ClearPinOutput(kWarpPinTPS82740_VSEL1);
-			GPIO_DRV_SetPinOutput(kWarpPinTPS82740_VSEL2);
-			GPIO_DRV_SetPinOutput(kWarpPinTPS82740_VSEL3);
-
-			break;
-		}
-
-		case 3300:
-		case 2500:
-		{
-			GPIO_DRV_SetPinOutput(kWarpPinTPS82740_VSEL1);
-			GPIO_DRV_SetPinOutput(kWarpPinTPS82740_VSEL2);
-			GPIO_DRV_SetPinOutput(kWarpPinTPS82740_VSEL3);
-
-			break;
-		}
-
-		/*
-		 *	Should never happen, due to previous check in enableSssupply()
-		 */
-		default:
-		{
-			SEGGER_RTT_printf(0, RTT_CTRL_RESET RTT_CTRL_BG_BRIGHT_YELLOW RTT_CTRL_TEXT_BRIGHT_WHITE kWarpConstantStringErrorSanity RTT_CTRL_RESET "\n");
-		}
-	}
-
-
-	/*
-	 *	Vload ramp time of the TPS82740 is 800us max (datasheet, Section 8.5 / page 5)
-	 */
-	OSA_TimeDelay(1);
-}
-
-
-
-void
-enableSssupply(uint16_t voltageMillivolts)
-{
-	if (voltageMillivolts >= 1800 && voltageMillivolts <= 2500)
-	{
-		enableTPS82740A(voltageMillivolts);
-	}
-	else if (voltageMillivolts >= 2600 && voltageMillivolts <= 3300)
-	{
-		enableTPS82740B(voltageMillivolts);
-	}
-	else
-	{
-		SEGGER_RTT_printf(0, RTT_CTRL_RESET RTT_CTRL_BG_BRIGHT_RED RTT_CTRL_TEXT_BRIGHT_WHITE kWarpConstantStringErrorInvalidVoltage RTT_CTRL_RESET "\n", voltageMillivolts);
-	}
-}
-
-
-
-void
-disableSssupply(void)
-{
-	disableTPS82740A();
-	disableTPS82740B();
-
-	/*
-	 *	Clear the pin. This sets the TS5A3154 to use the output of the TPS82740B,
-	 *	which shouldn't matter in any case. The main objective here is to clear
-	 *	the pin to reduce power drain.
-	 *
-	 *		IN = high selects the output of the TPS82740B:
-	 *		IN = low selects the output of the TPS82740A:
-	 */
-	GPIO_DRV_SetPinOutput(kWarpPinTS5A3154_IN);
-}
-
-
-
-void
-warpLowPowerSecondsSleep(uint32_t sleepSeconds, bool forceAllPinsIntoLowPowerState)
-{
-	/*
-	 *	Set all pins into low-power states. We don't just disable all pins,
-	 *	as the various devices hanging off will be left in higher power draw
-	 *	state. And manuals say set pins to output to reduce power.
-	 */
-	if (forceAllPinsIntoLowPowerState)
-	{
-		lowPowerPinStates();
-	}
-
-	warpSetLowPowerMode(kWarpPowerModeVLPR, 0);
-	warpSetLowPowerMode(kWarpPowerModeVLPS, sleepSeconds);
-}
-
-
-
 void
 printPinDirections(void)
 {
@@ -767,30 +551,6 @@ printPinDirections(void)
 	SEGGER_RTT_printf(0, "SI4705_nRST:%d\n", GPIO_DRV_GetPinDir(kWarpPinSI4705_nRST));
 	OSA_TimeDelay(100);
 	*/
-}
-
-
-
-void
-dumpProcessorState(void)
-{
-	uint32_t	cpuClockFrequency;
-
-	CLOCK_SYS_GetFreq(kCoreClock, &cpuClockFrequency);
-	SEGGER_RTT_printf(0, "\r\n\n\tCPU @ %u KHz\n", (cpuClockFrequency / 1000));
-	SEGGER_RTT_printf(0, "\r\tCPU power mode: %u\n", POWER_SYS_GetCurrentMode());
-	SEGGER_RTT_printf(0, "\r\tCPU clock manager configuration: %u\n", CLOCK_SYS_GetCurrentConfiguration());
-	SEGGER_RTT_printf(0, "\r\tRTC clock: %d\n", CLOCK_SYS_GetRtcGateCmd(0));
-	SEGGER_RTT_printf(0, "\r\tSPI clock: %d\n", CLOCK_SYS_GetSpiGateCmd(0));
-	SEGGER_RTT_printf(0, "\r\tI2C clock: %d\n", CLOCK_SYS_GetI2cGateCmd(0));
-	SEGGER_RTT_printf(0, "\r\tLPUART clock: %d\n", CLOCK_SYS_GetLpuartGateCmd(0));
-	SEGGER_RTT_printf(0, "\r\tPORT A clock: %d\n", CLOCK_SYS_GetPortGateCmd(0));
-	SEGGER_RTT_printf(0, "\r\tPORT B clock: %d\n", CLOCK_SYS_GetPortGateCmd(1));
-	SEGGER_RTT_printf(0, "\r\tFTF clock: %d\n", CLOCK_SYS_GetFtfGateCmd(0));
-	SEGGER_RTT_printf(0, "\r\tADC clock: %d\n", CLOCK_SYS_GetAdcGateCmd(0));
-	SEGGER_RTT_printf(0, "\r\tCMP clock: %d\n", CLOCK_SYS_GetCmpGateCmd(0));
-	SEGGER_RTT_printf(0, "\r\tVREF clock: %d\n", CLOCK_SYS_GetVrefGateCmd(0));
-	SEGGER_RTT_printf(0, "\r\tTPM clock: %d\n", CLOCK_SYS_GetTpmGateCmd(0));
 }
 
 
@@ -965,7 +725,7 @@ main(void)
 	/*
 	 *	Switch CPU to Very Low Power Run (VLPR) mode
 	 */
-	warpSetLowPowerMode(kWarpPowerModeVLPR, 0);
+	// warpSetLowPowerMode(kWarpPowerModeVLPR, 0);
 
 
 
@@ -981,7 +741,7 @@ main(void)
 	 *	Note that it is lowPowerPinStates() that sets the pin mux mode,
 	 *	so until we call it pins are in their default state.
 	 */
-	lowPowerPinStates();
+	// lowPowerPinStates();
 
 
 
@@ -1008,17 +768,15 @@ main(void)
 	 SEGGER_RTT_WriteString(0, "Before");
 	initINA219(	0x40	/* i2cAddress */,	&deviceINA219State	);
 		devSSD1331init();
+		// for (int i = 0; i < 10; i++) {
+			devSSD1331printDigit(4);
+			OSA_TimeDelay(1000);
+		// }
+
 SEGGER_RTT_WriteString(0, "After");
-
-
-	//initPAN1326B(&devicePAN1326BState);
-#ifdef WARP_PAN1323ETU
-	initPAN1323ETU(&devicePAN1323ETUState);
-#endif
-
 SEGGER_RTT_WriteString(0, "After1");
 
-	disableSssupply();
+	// disableSssupply();
 
 	/*
 	 *	Wait for supply and pull-ups to settle.
@@ -1074,205 +832,6 @@ SEGGER_RTT_WriteString(0, "After1");
 }
 
 
-
-void
-loopForSensor(	const char *  tagString,
-		WarpStatus  (* readSensorRegisterFunction)(uint8_t deviceRegister),
-		volatile WarpI2CDeviceState *  i2cDeviceState,
-		volatile WarpSPIDeviceState *  spiDeviceState,
-		uint8_t  baseAddress,
-		uint8_t  minAddress,
-		uint8_t  maxAddress,
-		int  repetitionsPerAddress,
-		int  chunkReadsPerAddress,
-		int  spinDelay,
-		bool  autoIncrement,
-		uint16_t  sssupplyMillivolts,
-		uint8_t  referenceByte,
-		uint16_t adaptiveSssupplyMaxMillivolts,
-		bool  chatty
-		)
-{
-	WarpStatus		status;
-	uint8_t			address = min(minAddress, baseAddress);
-	int			readCount = repetitionsPerAddress + 1;
-	int			nSuccesses = 0;
-	int			nFailures = 0;
-	int			nCorrects = 0;
-	int			nBadCommands = 0;
-	uint16_t		actualSssupplyMillivolts = sssupplyMillivolts;
-//	uint16_t		voltageTrace[readCount];
-
-
-	if (	(!spiDeviceState && !i2cDeviceState) ||
-		(spiDeviceState && i2cDeviceState) )
-	{
-			SEGGER_RTT_printf(0, RTT_CTRL_RESET RTT_CTRL_BG_BRIGHT_YELLOW RTT_CTRL_TEXT_BRIGHT_WHITE kWarpConstantStringErrorSanity RTT_CTRL_RESET "\n");
-	}
-
-//	memset(voltageTrace, 0, readCount*sizeof(uint16_t));
-	enableSssupply(actualSssupplyMillivolts);
-	OSA_TimeDelay(100);
-
-	SEGGER_RTT_WriteString(0, tagString);
-
-	/*
-	 *	Keep on repeating until we are above the maxAddress, or just once if not autoIncrement-ing
-	 *	This is checked for at the tail end of the loop.
-	 */
-	while (true)
-	{
-		for (int i = 0; i < readCount; i++) for (int j = 0; j < chunkReadsPerAddress; j++)
-		{
-//			voltageTrace[i] = actualSssupplyMillivolts;
-			status = readSensorRegisterFunction(address+j);
-			if (status == kWarpStatusOK)
-			{
-				nSuccesses++;
-				if (actualSssupplyMillivolts > sssupplyMillivolts)
-				{
-					actualSssupplyMillivolts -= 100;
-					enableSssupply(actualSssupplyMillivolts);
-				}
-
-				if (spiDeviceState)
-				{
-					if (referenceByte == spiDeviceState->spiSinkBuffer[2])
-					{
-						nCorrects++;
-					}
-
-					if (chatty)
-					{
-						SEGGER_RTT_printf(0, "\r0x%02x --> [0x%02x 0x%02x 0x%02x]\n",
-							address+j,
-							spiDeviceState->spiSinkBuffer[0],
-							spiDeviceState->spiSinkBuffer[1],
-							spiDeviceState->spiSinkBuffer[2]);
-					}
-				}
-				else
-				{
-					if (referenceByte == i2cDeviceState->i2cBuffer[0])
-					{
-						nCorrects++;
-					}
-
-					if (chatty)
-					{
-						SEGGER_RTT_printf(0, "\r0x%02x --> 0x%02x\n",
-							address+j,
-							i2cDeviceState->i2cBuffer[0]);
-					}
-				}
-			}
-			else if (status == kWarpStatusDeviceCommunicationFailed)
-			{
-				SEGGER_RTT_printf(0, "\r0x%02x --> ----\n",
-					address+j);
-
-				nFailures++;
-				if (actualSssupplyMillivolts < adaptiveSssupplyMaxMillivolts)
-				{
-					actualSssupplyMillivolts += 100;
-					enableSssupply(actualSssupplyMillivolts);
-				}
-			}
-			else if (status == kWarpStatusBadDeviceCommand)
-			{
-				nBadCommands++;
-			}
-
-			if (spinDelay > 0) OSA_TimeDelay(spinDelay);
-		}
-
-		if (autoIncrement)
-		{
-			address++;
-		}
-
-		if (address > maxAddress || !autoIncrement)
-		{
-			/*
-			 *	We either iterated over all possible addresses, or were asked to do only
-			 *	one address anyway (i.e. don't increment), so we're done.
-			 */
-			break;
-		}
-	}
-
-	/*
-	 *	To make printing of stats robust, we switch to VLPR (assuming we are not already in VLPR).
-	 *
-	 *	As of circa issue-58 implementation, RTT printing when in RUN mode was flaky (achievable SWD speed too slow for buffer fill rate?)
-	 */
-	warpSetLowPowerMode(kWarpPowerModeVLPR, 0 /* sleep seconds : irrelevant here */);
-
-	SEGGER_RTT_printf(0, "\r\n\t%d/%d success rate.\n", nSuccesses, (nSuccesses + nFailures));
-	SEGGER_RTT_printf(0, "\r\t%d/%d successes matched ref. value of 0x%02x.\n", nCorrects, nSuccesses, referenceByte);
-	SEGGER_RTT_printf(0, "\r\t%d bad commands.\n\n", nBadCommands);
-	SEGGER_RTT_printf(0, "\r\tVoltage trace:\n", nBadCommands);
-
-//	for (int i = 0; i < readCount; i++)
-//	{
-//		SEGGER_RTT_printf(0, "\r\t\t%d\t%d\n", i, voltageTrace[i]);
-//	}
-
-	return;
-}
-
-
-
-
-
-int
-char2int(int character)
-{
-	if (character >= '0' && character <= '9')
-	{
-		return character - '0';
-	}
-
-	if (character >= 'a' && character <= 'f')
-	{
-		return character - 'a' + 10;
-	}
-
-	if (character >= 'A' && character <= 'F')
-	{
-		return character - 'A' + 10;
-	}
-
-	return 0;
-}
-
-
-
-uint8_t
-readHexByte(void)
-{
-	uint8_t		topNybble, bottomNybble;
-
-	topNybble = SEGGER_RTT_WaitKey();
-	bottomNybble = SEGGER_RTT_WaitKey();
-
-	return (char2int(topNybble) << 4) + char2int(bottomNybble);
-}
-
-
-
-int
-read4digits(void)
-{
-	uint8_t		digit1, digit2, digit3, digit4;
-
-	digit1 = SEGGER_RTT_WaitKey();
-	digit2 = SEGGER_RTT_WaitKey();
-	digit3 = SEGGER_RTT_WaitKey();
-	digit4 = SEGGER_RTT_WaitKey();
-
-	return (digit1 - '0')*1000 + (digit2 - '0')*100 + (digit3 - '0')*10 + (digit4 - '0');
-}
 
 
 
