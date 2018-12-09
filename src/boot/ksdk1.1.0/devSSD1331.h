@@ -44,4 +44,4 @@ typedef enum
 
 int	devSSD1331init(void);
 int	devSSD1331striperect(void);
-int devSSD1331printDigit(int digit, int x, int y);
+int devSSD1331printDigit(int digit, int x, int y, uint8_t big_digit);

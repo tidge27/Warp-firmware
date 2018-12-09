@@ -38,14 +38,14 @@
  *		A long time ago, before switching to SEGGER RTT for print, we repurposed PTB3/PTB4 for LPUART0_TX/RX for debug prints,
  *		in which case:
  *
- *	Pin Name			Default		Configuration				
+ *	Pin Name			Default		Configuration
  *	=========================	========	====================================================================================
  *	PTB3/IRQ_10			DISABLED	ALT3		LPUART0_TX
  *	PTB4/IRQ_11			DISABLED	ALT3		LPUART0_RX
- *	
+ *
  */
 
-enum _gpio_pins 
+enum _gpio_pins
 {
 	kWarpPinUnusedPTA0			= GPIO_MAKE_PIN(HW_GPIOA, 0),		/*	PTA0: Reserved for SWD CLK			(was LED1/TS5A3154_IN in Warp v2)			*/
 	kWarpPinUnusedPTA1			= GPIO_MAKE_PIN(HW_GPIOA, 1),		/*	PTA1: Reserved for SWD RESET_B			(was LED2/TS5A3154_nEN in Warp v2)			*/
@@ -53,7 +53,7 @@ enum _gpio_pins
 
 	kWarpPinEXTAL0				= GPIO_MAKE_PIN(HW_GPIOA, 3),		/*	PTA3: EXTAL0												*/
 	kWarpPinXTAL0				= GPIO_MAKE_PIN(HW_GPIOA, 4),		/*	PTA4: XTAL0												*/
-	
+
 	kWarpPinTPS82740_VSEL1			= GPIO_MAKE_PIN(HW_GPIOA, 5),		/*	Warp TPS82740_VSEL1	--> PTA5									*/
 	kWarpPinTPS82740_VSEL2			= GPIO_MAKE_PIN(HW_GPIOA, 8),		/*	Warp TPS82740_VSEL2	--> PTA8									*/
 	kWarpPinTPS82740B_CTLEN			= GPIO_MAKE_PIN(HW_GPIOA, 12),		/*	Warp kWarpPinTPS82740B_CTLEN --> PTA12 		(was kWarpPinTPS82675_EN in Warp v2)			*/
@@ -80,7 +80,7 @@ enum _gpio_pins
 	kWarpPinI2C0_SDA			= GPIO_MAKE_PIN(HW_GPIOB, 4),		/*	Warp KL03_I2C0_SDA	--> PTB4									*/
 	kWarpPinSPI_MISO			= GPIO_MAKE_PIN(HW_GPIOA, 6),		/*	Warp KL03_SPI_MISO	--> PTA6									*/
 	kWarpPinSPI_MOSI			= GPIO_MAKE_PIN(HW_GPIOA, 7),		/*	Warp KL03_SPI_MOSI	--> PTA7									*/
-	kWarpPinTPS82740A_CTLEN			= GPIO_MAKE_PIN(HW_GPIOA, 9),		/*	Warp kWarpPinTPS82740A_CTLEN --> PTA9		(was kWarpPinSPI_SCK_I2C_PULLUP_EN in Warp v2)		*/	
+	kWarpPinTPS82740A_CTLEN			= GPIO_MAKE_PIN(HW_GPIOA, 9),		/*	Warp kWarpPinTPS82740A_CTLEN --> PTA9		(was kWarpPinSPI_SCK_I2C_PULLUP_EN in Warp v2)		*/
 #endif
 };
 

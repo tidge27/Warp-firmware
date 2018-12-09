@@ -45,6 +45,7 @@
 #include "fsl_i2c_master_driver.h"
 #include "fsl_spi_master_driver.h"
 #include "fsl_rtc_driver.h"
+#include "fsl_gpio_driver.h"
 #include "fsl_clock_manager.h"
 #include "fsl_power_manager.h"
 #include "fsl_mcglite_hal.h"
@@ -65,6 +66,11 @@
 
 
 volatile WarpI2CDeviceState		  deviceINA219State;
+volatile uint32_t last_milliseconds;
+volatile uint32_t cadence;
+volatile uint32_t last_cadence;
+
+
 
 /*
  *	TODO: move this and possibly others into a global structure
@@ -157,6 +163,23 @@ clockManagerCallbackRoutine(clock_notify_struct_t *  notify, void *  callbackDat
 }
 
 
+
+
+// Override the GPIO handler
+void PORTA_IRQHandler(void)
+{
+    /* Clear interrupt flag.*/
+    PORT_HAL_ClearPortIntFlag(PORTA_BASE);
+		SEGGER_RTT_WriteString(0, "Interrupting\n");
+		uint32_t milliseconds = OSA_TimeGetMsec();
+		if (milliseconds > last_milliseconds + 300)
+		{
+			last_cadence = cadence
+			cadence = 60000/(milliseconds - last_milliseconds)
+		}
+		SEGGER_RTT_printf(0, "%d, ", milliseconds);
+}
+
 /*
  *	Override the RTC IRQ handler
  */
@@ -168,6 +191,8 @@ RTC_IRQHandler(void)
 		RTC_DRV_SetAlarmIntCmd(0, false);
 	}
 }
+
+
 
 /*
  *	Override the RTC Second IRQ handler
@@ -217,13 +242,13 @@ enableSPIpins(void)
 	CLOCK_SYS_EnableSpiClock(0);
 
 	/*	Warp KL03_SPI_MISO	--> PTA6	(ALT3)		*/
-	PORT_HAL_SetMuxMode(PORTA_BASE, 6, kPortMuxAlt3);
-
-	/*	Warp KL03_SPI_MOSI	--> PTA7	(ALT3)		*/
-	PORT_HAL_SetMuxMode(PORTA_BASE, 7, kPortMuxAlt3);
-
-	/*	Warp KL03_SPI_SCK	--> PTB0	(ALT3)		*/
-	PORT_HAL_SetMuxMode(PORTB_BASE, 0, kPortMuxAlt3);
+	// PORT_HAL_SetMuxMode(PORTA_BASE, 6, kPortMuxAlt3);
+	//
+	// /*	Warp KL03_SPI_MOSI	--> PTA7	(ALT3)		*/
+	// PORT_HAL_SetMuxMode(PORTA_BASE, 7, kPortMuxAlt3);
+	//
+	// /*	Warp KL03_SPI_SCK	--> PTB0	(ALT3)		*/
+	// PORT_HAL_SetMuxMode(PORTB_BASE, 0, kPortMuxAlt3);
 
 
 	/*
@@ -241,28 +266,28 @@ enableSPIpins(void)
 
 
 
-void
-disableSPIpins(void)
-{
-	SPI_DRV_MasterDeinit(0);
-
-
-	/*	Warp KL03_SPI_MISO	--> PTA6	(GPI)		*/
-	PORT_HAL_SetMuxMode(PORTA_BASE, 6, kPortMuxAsGpio);
-
-	/*	Warp KL03_SPI_MOSI	--> PTA7	(GPIO)		*/
-	PORT_HAL_SetMuxMode(PORTA_BASE, 7, kPortMuxAsGpio);
-
-	/*	Warp KL03_SPI_SCK	--> PTB0	(GPIO)		*/
-	PORT_HAL_SetMuxMode(PORTB_BASE, 0, kPortMuxAsGpio);
-
-	GPIO_DRV_ClearPinOutput(kWarpPinSPI_MOSI);
-	GPIO_DRV_ClearPinOutput(kWarpPinSPI_MISO);
-	GPIO_DRV_ClearPinOutput(kWarpPinSPI_SCK);
-
-
-	CLOCK_SYS_DisableSpiClock(0);
-}
+// void
+// disableSPIpins(void)
+// {
+// 	SPI_DRV_MasterDeinit(0);
+//
+//
+// 	/*	Warp KL03_SPI_MISO	--> PTA6	(GPI)		*/
+// 	PORT_HAL_SetMuxMode(PORTA_BASE, 6, kPortMuxAsGpio);
+//
+// 	/*	Warp KL03_SPI_MOSI	--> PTA7	(GPIO)		*/
+// 	PORT_HAL_SetMuxMode(PORTA_BASE, 7, kPortMuxAsGpio);
+//
+// 	/*	Warp KL03_SPI_SCK	--> PTB0	(GPIO)		*/
+// 	PORT_HAL_SetMuxMode(PORTB_BASE, 0, kPortMuxAsGpio);
+//
+// 	GPIO_DRV_ClearPinOutput(kWarpPinSPI_MOSI);
+// 	GPIO_DRV_ClearPinOutput(kWarpPinSPI_MISO);
+// 	GPIO_DRV_ClearPinOutput(kWarpPinSPI_SCK);
+//
+//
+// 	CLOCK_SYS_DisableSpiClock(0);
+// }
 
 
 
@@ -503,7 +528,8 @@ main(void)
 	 *	See also Section 30.3.3 GPIO Initialization of KSDK13APIRM.pdf
 	 */
 	GPIO_DRV_Init(inputPins  /* input pins */, outputPins  /* output pins */);
-
+	PORT_HAL_SetPullMode(PORTA_BASE, 7, kPortPullUp);
+INT_SYS_EnableIRQGlobal();
 	/*
 	 *	Note that it is lowPowerPinStates() that sets the pin mux mode,
 	 *	so until we call it pins are in their default state.
@@ -535,18 +561,33 @@ main(void)
 	 SEGGER_RTT_WriteString(0, "Before");
 	initINA219(	0x40	/* i2cAddress */,	&deviceINA219State	);
 		devSSD1331init();
-		int x = 0;
-		int y = 0;
-		for (int i = 0; i < 10; i++) {
-			devSSD1331printDigit(i, x , y);
-			OSA_TimeDelay(1000);
-			x += 15;
-			if(i == 5)
-			{
-				x=0;
-				y=24;
-			}
+		// int x = 0;
+		// int y = 0;
+		// for (int i = 0; i < 3; i++) {
+		// 	devSSD1331printDigit(i, x , y, 1);
+		// 	OSA_TimeDelay(1000);
+		// 	x += 31;
+		// 	if(i == 2)
+		// 	{
+		// 		x=0;
+		// 		y=48;
+		// 	}
+		//
+		// }
 
+
+		for(int h = 0;h<10;h++)
+		{
+			devSSD1331printDigit(h, 1 , 8, 1);
+			for(int t = 0;t<10;t++)
+			{
+				devSSD1331printDigit(t, 32 , 8, 1);
+				for(int u = 0;u<10;u++)
+				{
+					devSSD1331printDigit(u, 63 , 8, 1);
+					OSA_TimeDelay(1000);
+				}
+			}
 		}
 
 SEGGER_RTT_WriteString(0, "After");

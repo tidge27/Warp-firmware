@@ -73,7 +73,7 @@ writeData(uint8_t *  dataPayloadBytes, int payloadLength)
 	 *	Make sure there is a high-to-low transition by first driving high, delay, then drive low.
 	 */
 	GPIO_DRV_SetPinOutput(kSSD1331PinCSn);
-	OSA_TimeDelay(10);
+	OSA_TimeDelay(1);
 	GPIO_DRV_ClearPinOutput(kSSD1331PinCSn);
 
 	/*
@@ -134,7 +134,8 @@ devSSD1331init(void)
 	 */
 	writeCommand(kSSD1331CommandDISPLAYOFF);	// 0xAE
 	writeCommand(kSSD1331CommandSETREMAP);		// 0xA0
-	writeCommand(0x72);				// RGB Color, 65k color formatt
+	// writeCommand(0x72);				// RGB Color, 65k color formatt
+	writeCommand(0x32);				// RGB Color, 256 color formatt
 	writeCommand(kSSD1331CommandSTARTLINE);		// 0xA1
 	writeCommand(0x0);
 	writeCommand(kSSD1331CommandDISPLAYOFFSET);	// 0xA2
@@ -260,11 +261,15 @@ int devSSD1331striperect(void)
 	return 0;
 }
 
-int devSSD1331printDigit(int digit, int x, int y)
+int devSSD1331printDigit(int digit, int x, int y, uint8_t big_digit)
 {
-	SEGGER_RTT_WriteString(0, "\r\n\tprint digit\n");
+	SEGGER_RTT_WriteString(0, "\r\n\tprint digitty\n");
 	// uint8_t imageBuffer[768];
 	uint8_t imageBuffer[32];
+	int multi = 1;
+	if(big_digit){
+		multi = 2;
+	}
 const uint8_t numBuffer[10][48] = {
 	{0x00, 0x00, 0x07, 0xE0, 0x0F, 0xF0, 0x1C, 0x38, 0x38, 0x18, 0x30, 0x1C, 0x70, 0x3C, 0x70, 0x7C, 0x70, 0x6C, 0x70, 0xCC, 0x60, 0x8C, 0x61, 0x8E, 0x63, 0x0E, 0x62, 0x0C, 0x76, 0x0C, 0x7C, 0x0C, 0x7C, 0x0C, 0x38, 0x1C, 0x38, 0x1C, 0x38, 0x18, 0x1C, 0x38, 0x0F, 0xF0, 0x07, 0xC0, 0x00, 0x00},
 	{0x00, 0x00, 0x03, 0xC0, 0x0F, 0xC0, 0x1F, 0xC0, 0x39, 0xC0, 0x20, 0xC0, 0x00, 0xC0, 0x00, 0xC0, 0x00, 0xC0, 0x00, 0xC0, 0x00, 0xC0, 0x00, 0xC0, 0x00, 0xC0, 0x00, 0xC0, 0x00, 0xC0, 0x00, 0xC0, 0x00, 0xC0, 0x00, 0xC0, 0x00, 0xC0, 0x01, 0xC0, 0x01, 0xE0, 0x1F, 0xFE, 0x1F, 0xFC, 0x00, 0x00},
@@ -280,11 +285,11 @@ const uint8_t numBuffer[10][48] = {
 SEGGER_RTT_WriteString(0, "\r\n\tSetup zero\n");
 writeCommand(kSSD1331CommandSETCOLUMN);
 writeCommand(x);
-writeCommand(x + 0x0F);
+writeCommand(x + multi * 0x10 - 1);
 // Set the columns to scan over
 writeCommand(kSSD1331CommandSETROW);
 writeCommand(y);
-writeCommand(y + 0x17);
+writeCommand(y + multi * 0x18 -1);
 uint8_t maskbit = 0x00;
 for (int row = 0; row < 24; row++)
 {
@@ -295,18 +300,29 @@ for (int row = 0; row < 24; row++)
 		{
 
 			if ((numBuffer[digit][r+2*row]&maskbit)>0) {
-				imageBuffer[r*16+2*i] = (0xF8);
-				imageBuffer[r*16+2*i+1] = (0x00);
+				imageBuffer[r*8+i] = (0xFF);
+				// imageBuffer[r*16+2*i+1] = (0x00);
 			} else {
-				imageBuffer[r*16+2*i] = (0x00);
-				imageBuffer[r*16+2*i+1] = (0x00);
+				imageBuffer[r*8+i] = (0x00);
+				// imageBuffer[r*16+2*i+1] = (0x00);
 			}
 			if(maskbit > 0x01){
 				maskbit = maskbit >> 1;
 			}
 		}
 	}
-	writeData(imageBuffer, 32);
+	if (big_digit){
+		for(int count = 15; count != -1; count--)
+		{
+			imageBuffer[count*2+1] = imageBuffer[count];
+			imageBuffer[count*2] = imageBuffer[count];
+		}
+		writeData(imageBuffer, 32);
+		writeData(imageBuffer, 32);
+	} else {
+		writeData(imageBuffer, 16);
+	}
+
 }
 return 0;
 }
