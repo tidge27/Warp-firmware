@@ -170,14 +170,21 @@ void PORTA_IRQHandler(void)
 {
     /* Clear interrupt flag.*/
     PORT_HAL_ClearPortIntFlag(PORTA_BASE);
-		SEGGER_RTT_WriteString(0, "Interrupting\n");
+		SEGGER_RTT_WriteString(0, "Interrupting:  ");
 		uint32_t milliseconds = OSA_TimeGetMsec();
 		if (milliseconds > last_milliseconds + 300)
 		{
-			last_cadence = cadence
-			cadence = 60000/(milliseconds - last_milliseconds)
+			last_cadence = cadence;
+			cadence = 60000/(milliseconds - last_milliseconds);
+			last_milliseconds = milliseconds;
 		}
-		SEGGER_RTT_printf(0, "%d, ", milliseconds);
+		else if (milliseconds < last_milliseconds)
+		{
+			last_cadence = cadence;
+			cadence = 60000/(milliseconds + 0xFFFF - last_milliseconds);
+			last_milliseconds = milliseconds;
+		}
+		SEGGER_RTT_printf(0, "%d, %d\n", last_milliseconds, milliseconds);
 }
 
 /*
@@ -528,6 +535,7 @@ main(void)
 	 *	See also Section 30.3.3 GPIO Initialization of KSDK13APIRM.pdf
 	 */
 	GPIO_DRV_Init(inputPins  /* input pins */, outputPins  /* output pins */);
+	PORT_HAL_SetMuxMode(PORTA_BASE, 7, kPortMuxAsGpio);
 	PORT_HAL_SetPullMode(PORTA_BASE, 7, kPortPullUp);
 INT_SYS_EnableIRQGlobal();
 	/*
@@ -576,71 +584,36 @@ INT_SYS_EnableIRQGlobal();
 		// }
 
 
-		for(int h = 0;h<10;h++)
-		{
-			devSSD1331printDigit(h, 1 , 8, 1);
-			for(int t = 0;t<10;t++)
-			{
-				devSSD1331printDigit(t, 32 , 8, 1);
-				for(int u = 0;u<10;u++)
-				{
-					devSSD1331printDigit(u, 63 , 8, 1);
-					OSA_TimeDelay(1000);
-				}
-			}
-		}
-
-SEGGER_RTT_WriteString(0, "After");
-SEGGER_RTT_WriteString(0, "After1");
-
-	// disableSssupply();
-
-	/*
-	 *	Wait for supply and pull-ups to settle.
-	 */
-	OSA_TimeDelay(1000);
-
-
-
-	// while (1)
-	// {
-		// SEGGER_RTT_WriteString(0, "loopy\n");
-	 //
-		// enableI2Cpins(65535 /* pullupValue*/);
-		// readSensorRegisterINA219(0x00);
-		// // Check this is fine, should output 399F
-		// disableI2Cpins();
-	 //
-		// uint8_t		configBuffer[2]= {0x01, 0x9F};
-		// uint8_t		calibBuffer[2]= {0x20, 0x00};
-		// writeBytesToI2cDeviceRegister(0x40, true, 0x00, true, configBuffer, 2);
-		// writeBytesToI2cDeviceRegister(0x40, true, 0x05, true, calibBuffer, 2);
-	 //
-	 //
-		// for( uint32_t i = 0; i < 1000; i = i + 1 ){
-		// 	SEGGER_RTT_printf(0, "%d, ", i);
+		// for(int h = 0;h<10;h++)
+		// {
+		// 	devSSD1331printDigit(h, 1 , 8, 1);
+		// 	for(int t = 0;t<10;t++)
+		// 	{
+		// 		devSSD1331printDigit(t, 32 , 8, 1);
+		// 		for(int u = 0;u<10;u++)
+		// 		{
+		// 			devSSD1331printDigit(u, 63 , 8, 1);
+		// 			OSA_TimeDelay(1000);
+		// 		}
+		// 	}
 		// }
-		// SEGGER_RTT_printf(0, "\n");
-		// for( uint32_t a = 0; a < 1000; a = a + 1 ){
-		// 	enableI2Cpins(65535 /* pullupValue*/);
-		// 	readSensorRegisterINA219(0x04);
-		// 	disableI2Cpins();
-		// 	uint32_t microamps = (deviceINA219State.i2cBuffer[1] | deviceINA219State.i2cBuffer[0] << 8) * 50;
-		// 	SEGGER_RTT_printf(0, "%d, ", microamps);
-   // }
-	 // SEGGER_RTT_printf(0, "\n");
-	 //
-	 //
-	 //
 
 		while (1)
 		{
-			enableI2Cpins(65535 /* pullupValue*/);
-			readSensorRegisterINA219(0x04);
-			disableI2Cpins();
-			uint32_t milliamps = (deviceINA219State.i2cBuffer[1] | deviceINA219State.i2cBuffer[0] << 8) / 20;
-			SEGGER_RTT_printf(0, "current:	%dmA\n", milliamps);
-			OSA_TimeDelay(1000);
+			// enableI2Cpins(65535 /* pullupValue*/);
+			// readSensorRegisterINA219(0x04);
+			// disableI2Cpins();
+			// uint32_t milliamps = (deviceINA219State.i2cBuffer[1] | deviceINA219State.i2cBuffer[0] << 8) / 20;
+			// SEGGER_RTT_printf(0, ":	%dmA\n", milliamps);
+			// OSA_TimeDelay(1000);
+			if (last_cadence != cadence)
+			{
+				SEGGER_RTT_printf(0, "Cadence:	%d\n", cadence);
+				devSSD1331printDigit((cadence/100)%10, 39 , 8, 0);
+				devSSD1331printDigit((cadence/10)%10, 24 , 8, 0);
+				devSSD1331printDigit((cadence)%10, 9 , 8, 0);
+				last_cadence = cadence;
+			}
 		}
 
 	// }

@@ -135,7 +135,8 @@ devSSD1331init(void)
 	writeCommand(kSSD1331CommandDISPLAYOFF);	// 0xAE
 	writeCommand(kSSD1331CommandSETREMAP);		// 0xA0
 	// writeCommand(0x72);				// RGB Color, 65k color formatt
-	writeCommand(0x32);				// RGB Color, 256 color formatt
+	// writeCommand(0x32);				// RGB Color, 256 color formatt
+	writeCommand(0x33);				// RGB Color, 256 color formatt
 	writeCommand(kSSD1331CommandSTARTLINE);		// 0xA1
 	writeCommand(0x0);
 	writeCommand(kSSD1331CommandDISPLAYOFFSET);	// 0xA2
@@ -284,22 +285,27 @@ const uint8_t numBuffer[10][48] = {
 };
 SEGGER_RTT_WriteString(0, "\r\n\tSetup zero\n");
 writeCommand(kSSD1331CommandSETCOLUMN);
-writeCommand(x);
-writeCommand(x + multi * 0x10 - 1);
+writeCommand(y);
+writeCommand(y + multi * 0x18 - 1);
 // Set the columns to scan over
 writeCommand(kSSD1331CommandSETROW);
-writeCommand(y);
-writeCommand(y + multi * 0x18 -1);
+writeCommand(x);
+writeCommand(x + multi * 0x10 -1);
 uint8_t maskbit = 0x00;
 for (int row = 0; row < 24; row++)
 {
 	for (int r = 0; r < 2; r++)
 	{
+		int not_r = 0;
+		if(r==0)
+		{
+			not_r = 1;
+		}
 		maskbit = 0x80;
-		for (int i = 0; i < 8; i++)
+		for (int i = 7; i > -1; i--)
 		{
 
-			if ((numBuffer[digit][r+2*row]&maskbit)>0) {
+			if ((numBuffer[digit][not_r+2*row]&maskbit)>0) {
 				imageBuffer[r*8+i] = (0xFF);
 				// imageBuffer[r*16+2*i+1] = (0x00);
 			} else {
