@@ -81,12 +81,16 @@ writeData(uint8_t *  dataPayloadBytes, int payloadLength)
 	 */
 	GPIO_DRV_SetPinOutput(kSSD1331PinDC);
 
-	status = SPI_DRV_MasterTransferBlocking(0		/* master instance */,
+	// status = SPI_DRV_MasterTransferBlocking(0		/* master instance */,
+	status = SPI_DRV_MasterTransfer(0		/* master instance */,
 						NULL		/* spi_master_user_config_t */,
 						dataPayloadBytes,
 						NULL,
-						payloadLength	/* transfer size */,
-						1000		/* timeout in microseconds (unlike I2C which is ms) */);
+						payloadLength	/* transfer size */
+						// 1000		/* timeout in microseconds (unlike I2C which is ms) */);
+					);
+
+	while(SPI_DRV_MasterGetTransferStatus(0, NULL) == kStatus_SPI_Busy){}
 	/*
 	 *	Drive /CS high
 	 */

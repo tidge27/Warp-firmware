@@ -56,7 +56,8 @@
 #include "warp.h"
 
 
-#include "devINA219.h"
+// #include "devINA219.h"
+#include "devL3GD20H.h"
 #include "devSSD1331.h"
 
 
@@ -65,12 +66,14 @@
 #define					kWarpConstantStringErrorSanity		"\rSanity Check Failed!"
 
 
-volatile WarpI2CDeviceState		  deviceINA219State;
+// volatile WarpI2CDeviceState		  deviceINA219State;
+volatile WarpI2CDeviceState deviceL3GD20HState;
 volatile uint32_t last_milliseconds;
 volatile uint32_t cadence;
 volatile uint32_t last_cadence;
 
-
+volatile uint32_t previous_timestamp = 0;
+volatile uint32_t previous_angle = 0;
 
 /*
  *	TODO: move this and possibly others into a global structure
@@ -172,7 +175,7 @@ void PORTA_IRQHandler(void)
     PORT_HAL_ClearPortIntFlag(PORTA_BASE);
 		SEGGER_RTT_WriteString(0, "Interrupting:  ");
 		uint32_t milliseconds = OSA_TimeGetMsec();
-		if (milliseconds > last_milliseconds + 300)
+		if (milliseconds > last_milliseconds + 100)
 		{
 			last_cadence = cadence;
 			cadence = 60000/(milliseconds - last_milliseconds);
@@ -567,7 +570,8 @@ INT_SYS_EnableIRQGlobal();
 	 *	Initialize all the sensors
 	 */
 	 SEGGER_RTT_WriteString(0, "Before");
-	initINA219(	0x40	/* i2cAddress */,	&deviceINA219State	);
+	// initINA219(	0x40	/* i2cAddress */,	&deviceINA219State	);
+	initL3GD20H(0x6B, &deviceL3GD20HState);
 		devSSD1331init();
 		// int x = 0;
 		// int y = 0;
@@ -598,22 +602,43 @@ INT_SYS_EnableIRQGlobal();
 		// 	}
 		// }
 
+
+		configureSensorL3GD20H(0b11111111,/* ODR 800Hz, Cut-off 100Hz, see table 21, normal mode, x,y,z enable */
+										0b00100000,
+										0b00000000,/* normal mode, disable FIFO, disable high pass filter */
+										65535
+										);
 		while (1)
 		{
+			// Do all this if we want it to display the cadence
+			// if (last_cadence != cadence)
+			// {
+			// 	SEGGER_RTT_printf(0, "Cadence:	%d\n", cadence);
+			// 	devSSD1331printDigit((cadence/100)%10, 39 , 8, 0);
+			// 	devSSD1331printDigit((cadence/10)%10, 24 , 8, 0);
+			// 	devSSD1331printDigit((cadence)%10, 9 , 8, 0);
+			// 	last_cadence = cadence;
+			// }
+			// section for calculating the wobble angle
+
+			// uint32_t sensor_timestamp = OSA_TimeGetMsec();
+			// uint8_t gyro_reading =
+			// uint32_t anglex100 = ()(gyro_reading * (sensor_timestamp - previous_timestamp))*180/3.14159) + previous_angle;
+
 			// enableI2Cpins(65535 /* pullupValue*/);
-			// readSensorRegisterINA219(0x04);
+			// readSensorRegisterL3GD20H(0x0F);
+			// SEGGER_RTT_printf(0, "Value x:	%x\n", deviceL3GD20HState.i2cBuffer);
+			// SEGGER_RTT_printf(0, "Value d:	%d\n", deviceL3GD20HState.i2cBuffer);
+			// SEGGER_RTT_printf(0, "Value d[0]:	%d\n", deviceL3GD20HState.i2cBuffer[0]);
+			// SEGGER_RTT_printf(0, "Value d[1]:	%d\n", deviceL3GD20HState.i2cBuffer[1]);
+			//
 			// disableI2Cpins();
-			// uint32_t milliamps = (deviceINA219State.i2cBuffer[1] | deviceINA219State.i2cBuffer[0] << 8) / 20;
-			// SEGGER_RTT_printf(0, ":	%dmA\n", milliamps);
-			// OSA_TimeDelay(1000);
-			if (last_cadence != cadence)
-			{
-				SEGGER_RTT_printf(0, "Cadence:	%d\n", cadence);
-				devSSD1331printDigit((cadence/100)%10, 39 , 8, 0);
-				devSSD1331printDigit((cadence/10)%10, 24 , 8, 0);
-				devSSD1331printDigit((cadence)%10, 9 , 8, 0);
-				last_cadence = cadence;
-			}
+			enableI2Cpins(65535 /* pullupValue*/);
+printSensorDataL3GD20H();
+disableI2Cpins();
+			OSA_TimeDelay(1000);
+
+
 		}
 
 	// }
