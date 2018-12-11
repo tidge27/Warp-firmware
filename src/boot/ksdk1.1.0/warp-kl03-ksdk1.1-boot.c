@@ -602,12 +602,13 @@ INT_SYS_EnableIRQGlobal();
 		// 	}
 		// }
 
-
+		enableI2Cpins(65535 /* pullupValue*/);
 		configureSensorL3GD20H(0b11111111,/* ODR 800Hz, Cut-off 100Hz, see table 21, normal mode, x,y,z enable */
 										0b00100000,
 										0b00000000,/* normal mode, disable FIFO, disable high pass filter */
 										65535
 										);
+		disableI2Cpins();
 		while (1)
 		{
 			// Do all this if we want it to display the cadence
