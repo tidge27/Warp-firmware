@@ -13,6 +13,7 @@ typedef enum
 {
 	kSSD1331CommandDRAWLINE		= 0x21,
 	kSSD1331CommandDRAWRECT		= 0x22,
+	kSSD1331CommandCOPY		= 0x23,
 	kSSD1331CommandCLEAR		= 0x25,
 	kSSD1331CommandFILL		= 0x26,
 	kSSD1331CommandSETCOLUMN	= 0x15,
@@ -45,3 +46,4 @@ typedef enum
 int	devSSD1331init(void);
 int	devSSD1331striperect(void);
 int devSSD1331printDigit(int digit, int x, int y, uint8_t big_digit);
+int devSSD1331plotAngle(int angle);

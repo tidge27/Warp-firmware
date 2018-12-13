@@ -197,7 +197,7 @@ readSensorRegisterMMA8451Q(uint8_t deviceRegister)
 
 	if (returnValue == kStatus_I2C_Success)
 	{
-		//SEGGER_RTT_printf(0, "\r[0x%02x]	0x%02x\n", cmdBuf[0], deviceMMA8451QState.i2cBuffer[0]);
+		// SEGGER_RTT_printf(0, "\r[0x%02x]	0x%02x\n", cmdBuf[0], deviceMMA8451QState.i2cBuffer[0]);
 	}
 	else
 	{

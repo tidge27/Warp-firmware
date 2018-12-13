@@ -58,7 +58,9 @@
 
 // #include "devINA219.h"
 #include "devL3GD20H.h"
-// #include "devSSD1331.h"
+#include "devMMA8451Q.h"
+#include "devSSD1331.h"
+
 
 
 #define					kWarpConstantStringI2cFailure		"\rI2C failed, reg 0x%02x, code %d\n"
@@ -68,12 +70,15 @@
 
 // volatile WarpI2CDeviceState		  deviceINA219State;
 volatile WarpI2CDeviceState deviceL3GD20HState;
+volatile WarpI2CDeviceState deviceMMA8451QState;
 volatile uint32_t last_milliseconds;
 volatile uint32_t cadence;
 volatile uint32_t last_cadence;
 
 volatile uint32_t previous_timestamp = 0;
 volatile uint32_t previous_angle = 0;
+
+volatile uint8_t time_delta;
 
 /*
  *	TODO: move this and possibly others into a global structure
@@ -86,9 +91,9 @@ volatile spi_master_user_config_t	spiUserConfig;
 /*
  *	TODO: move magic default numbers into constant definitions.
  */
-volatile uint32_t			gWarpI2cBaudRateKbps	= 1;
+volatile uint32_t			gWarpI2cBaudRateKbps	= 100000;
 volatile uint32_t			gWarpUartBaudRateKbps	= 1;
-volatile uint32_t			gWarpSpiBaudRateKbps	= 1;
+volatile uint32_t			gWarpSpiBaudRateKbps	= 100000;
 volatile uint32_t			gWarpSleeptimeSeconds	= 0;
 volatile WarpModeMask			gWarpMode		= kWarpModeDisableAdcOnSleep;
 
@@ -168,7 +173,7 @@ void PORTA_IRQHandler(void)
 			cadence = 60000/(milliseconds + 0xFFFF - last_milliseconds);
 			last_milliseconds = milliseconds;
 		}
-		SEGGER_RTT_printf(0, "%d, %d\n", last_milliseconds, milliseconds);
+		// SEGGER_RTT_printf(0, "%d, %d\n", last_milliseconds, milliseconds);
 }
 
 /*
@@ -250,7 +255,7 @@ enableSPIpins(void)
 	spiUserConfig.polarity		= kSpiClockPolarity_ActiveHigh;
 	spiUserConfig.phase		= kSpiClockPhase_FirstEdge;
 	spiUserConfig.direction		= kSpiMsbFirst;
-	spiUserConfig.bitsPerSec	= gWarpSpiBaudRateKbps * 1000000;
+	spiUserConfig.bitsPerSec	= gWarpSpiBaudRateKbps * 1000;
 	SPI_DRV_MasterInit(0 /* SPI master instance */, (spi_master_state_t *)&spiMasterState);
 	SPI_DRV_MasterConfigureBus(0 /* SPI master instance */, (spi_master_user_config_t *)&spiUserConfig, &calculatedBaudRate);
 }
@@ -454,7 +459,8 @@ main(void)
 	/*
 	 *	Switch CPU to Very Low Power Run (VLPR) mode
 	 */
-	warpSetLowPowerMode(kWarpPowerModeVLPR, 0);
+	// warpSetLowPowerMode(kWarpPowerModeVLPR, 0);
+	warpSetLowPowerMode(kWarpPowerModeRUN, 0);
 
 
 
@@ -499,25 +505,38 @@ INT_SYS_EnableIRQGlobal();
 	 SEGGER_RTT_WriteString(0, "Before");
 	// initINA219(	0x40	/* i2cAddress */,	&deviceINA219State	);
 	initL3GD20H(0x6B, &deviceL3GD20HState);
+	initMMA8451Q(0x1D, &deviceMMA8451QState);
+	devSSD1331init();
 
 
 OSA_TimeDelay(1000);
 		configureSensorL3GD20H(0b11111111,/* ODR 800Hz, Cut-off 100Hz, see table 21, normal mode, x,y,z enable */
-										0b00100000,
-										0b00000000,/* normal mode, disable FIFO, disable high pass filter */
-										65535
-										);
+														0b00100000,
+														0b00000000,/* normal mode, disable FIFO, disable high pass filter */
+														65535
+														);
+		configureSensorMMA8451Q(0x00,/* Payload: Disable FIFO */
+														0x01,/* Normal read 8bit, 800Hz, normal, active mode */
+														65535
+														);
+		uint8_t first_time = 0x02;
 		while (1)
 		{
+			// SEGGER_RTT_WriteString(0, "while");
 			// Do all this if we want it to display the cadence
-			// if (last_cadence != cadence)
-			// {
-			// 	SEGGER_RTT_printf(0, "Cadence:	%d\n", cadence);
-			// 	devSSD1331printDigit((cadence/100)%10, 39 , 8, 0);
-			// 	devSSD1331printDigit((cadence/10)%10, 24 , 8, 0);
-			// 	devSSD1331printDigit((cadence)%10, 9 , 8, 0);
-			// 	last_cadence = cadence;
-			// }
+			if (last_cadence != cadence)
+			{
+				SEGGER_RTT_printf(0, "Cadence:	%d\n", cadence);
+				devSSD1331printDigit((cadence/100)%10, 39 , 8, 0);
+				// devSSD1331plotAngle(previous_angle/1000); //Hack to make it look smoother
+				devSSD1331printDigit((cadence/10)%10, 24 , 8, 0);
+				// devSSD1331plotAngle(previous_angle/1000);
+				devSSD1331printDigit((cadence)%10, 9 , 8, 0);
+				// devSSD1331plotAngle(previous_angle/1000);
+				last_cadence = cadence;
+			}
+
+
 			// section for calculating the wobble angle
 
 
@@ -532,18 +551,64 @@ OSA_TimeDelay(1000);
 			uint8_t xlsb = deviceL3GD20HState.i2cBuffer[0];
 			readSensorRegisterL3GD20H(0x29);
 			uint8_t xmsb = deviceL3GD20HState.i2cBuffer[0];
-			disableI2Cpins();
-
+			// disableI2Cpins();
 			int16_t gyro_reading = (int16_t)((xmsb)<<8) | (xlsb);
 			gyro_reading *= 0.00875F;
 
-			SEGGER_RTT_printf(0, "twist:	%d\n", gyro_reading);
+
+			// enableI2Cpins(65535 /* pullupValue*/);
+			// x msb = 64*g
+			readSensorRegisterMMA8451Q(0x01);
+			int8_t yaccel = (int8_t)deviceMMA8451QState.i2cBuffer[0];
+			// z msb = 64*g
+			readSensorRegisterMMA8451Q(0x05);
+			int8_t zaccel = (int8_t)deviceMMA8451QState.i2cBuffer[0];
+			disableI2Cpins();
+
+			float adjustval = 0;
+			if (abs(zaccel)>abs(yaccel))
+			{
+				adjustval = (float)yaccel*40.0/abs((float)zaccel);
+				// This is a very crude approximation for arctan() for the small angles I am looking at
+			}
+
+			float accelmag = abs((float)(zaccel*zaccel + yaccel*yaccel))/4096.0;
+			// SEGGER_RTT_printf(0, "%d  %d  %d  %d  \n", yaccel, zaccel, (int)adjustval*100, (int)accelmag*100);
+			if (accelmag < 0.25 || accelmag > 4.0)
+			{
+				// SEGGER_RTT_WriteString(0, "RUBBISH:  ");
+				accelmag = 0;
+			}
+
+			// SEGGER_RTT_printf(0, "%d  %d  %d  %d  \n", yaccel, zaccel, (int)adjustval*100, (int)accelmag*100);
 			uint32_t sensor_timestamp = OSA_TimeGetMsec();
-			// (x1000/1000)
+			// (x1000/1000) milliseconds cancel out the fact that degrees x1000 are stored
 			int anglex1000 = (gyro_reading * (sensor_timestamp - previous_timestamp)) + previous_angle;
-			SEGGER_RTT_printf(0, "Angle:	%d deg.\n", anglex1000/1000);
+
+			//  Checks that the magnitude of the accelration is close to 1g.  This stops bad measuremtns affecting the claulcated angle
+			if (accelmag > 0.5 && accelmag < 2.0)
+			{
+				anglex1000 *= 0.9;
+				anglex1000 += adjustval*0.1*1000;
+			}
+
+
+
+			devSSD1331plotAngle(anglex1000/1000);
+
+			// if (first_time)
+			// {
+			// 	devSSD1331plotAngle(anglex1000/1000);
+			// 	first_time -= 1;
+			// 	time_delta = (sensor_timestamp - previous_timestamp)
+			// } else {
+			// 	uint8_t plot_length(((sensor_timestamp - previous_timestamp) + time_delta / 2) / time_delta)
+			// }
+
+			SEGGER_RTT_printf(0, "%d deg.\n", anglex1000/1000);
 			previous_timestamp = sensor_timestamp;
 			previous_angle = anglex1000;
+
 
 
 		}

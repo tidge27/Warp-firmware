@@ -37,7 +37,7 @@ writeCommand(uint8_t commandByte)
 	 *	Make sure there is a high-to-low transition by first driving high, delay, then drive low.
 	 */
 	GPIO_DRV_SetPinOutput(kSSD1331PinCSn);
-	OSA_TimeDelay(10);
+	OSA_TimeDelay(1);
 	GPIO_DRV_ClearPinOutput(kSSD1331PinCSn);
 
 	/*
@@ -80,6 +80,43 @@ writeData(uint8_t *  dataPayloadBytes, int payloadLength)
 	 *	Drive DC high (data).
 	 */
 	GPIO_DRV_SetPinOutput(kSSD1331PinDC);
+
+	// status = SPI_DRV_MasterTransferBlocking(0		/* master instance */,
+	status = SPI_DRV_MasterTransfer(0		/* master instance */,
+						NULL		/* spi_master_user_config_t */,
+						dataPayloadBytes,
+						NULL,
+						payloadLength	/* transfer size */
+						// 1000		/* timeout in microseconds (unlike I2C which is ms) */);
+					);
+
+	while(SPI_DRV_MasterGetTransferStatus(0, NULL) == kStatus_SPI_Busy){}
+	/*
+	 *	Drive /CS high
+	 */
+	GPIO_DRV_SetPinOutput(kSSD1331PinCSn);
+	return status;
+}
+
+static int
+writeCommandFast(uint8_t *  dataPayloadBytes, int payloadLength)
+{
+	spi_status_t status;
+	// uint8_t		dataInBuffer[payloadLength];
+
+	/*
+	 *	Drive /CS low.
+	 *
+	 *	Make sure there is a high-to-low transition by first driving high, delay, then drive low.
+	 */
+	GPIO_DRV_SetPinOutput(kSSD1331PinCSn);
+	OSA_TimeDelay(1);
+	GPIO_DRV_ClearPinOutput(kSSD1331PinCSn);
+
+	/*
+	 *	Drive DC high (data).
+	 */
+	GPIO_DRV_ClearPinOutput(kSSD1331PinDC);
 
 	// status = SPI_DRV_MasterTransferBlocking(0		/* master instance */,
 	status = SPI_DRV_MasterTransfer(0		/* master instance */,
@@ -268,7 +305,7 @@ int devSSD1331striperect(void)
 
 int devSSD1331printDigit(int digit, int x, int y, uint8_t big_digit)
 {
-	SEGGER_RTT_WriteString(0, "\r\n\tprint digitty\n");
+	// SEGGER_RTT_WriteString(0, "\r\n\tprint digitty\n");
 	// uint8_t imageBuffer[768];
 	uint8_t imageBuffer[32];
 	int multi = 1;
@@ -287,7 +324,7 @@ const uint8_t numBuffer[10][48] = {
 	{0x00, 0x00, 0x0F, 0xE0, 0x1F, 0xF8, 0x38, 0x38, 0x30, 0x1C, 0x70, 0x1C, 0x70, 0x0C, 0x70, 0x1C, 0x30, 0x1C, 0x18, 0x38, 0x0F, 0xE0, 0x0F, 0xE0, 0x1C, 0x78, 0x30, 0x1C, 0x70, 0x0C, 0x60, 0x0C, 0x60, 0x0E, 0x60, 0x0C, 0x70, 0x0C, 0x70, 0x1C, 0x38, 0x38, 0x1F, 0xF8, 0x0F, 0xE0, 0x00, 0x00},
 	{0x00, 0x00, 0x07, 0xE0, 0x1F, 0xF0, 0x1C, 0x18, 0x38, 0x1C, 0x30, 0x0C, 0x30, 0x0E, 0x70, 0x0E, 0x70, 0x0E, 0x30, 0x0E, 0x30, 0x0E, 0x38, 0x1E, 0x1C, 0x3E, 0x1F, 0xF6, 0x07, 0xC6, 0x00, 0x06, 0x00, 0x0E, 0x00, 0x0C, 0x00, 0x1C, 0x00, 0x18, 0x10, 0x78, 0x1F, 0xF0, 0x0F, 0xC0, 0x00, 0x00}
 };
-SEGGER_RTT_WriteString(0, "\r\n\tSetup zero\n");
+// SEGGER_RTT_WriteString(0, "\r\n\tSetup zero\n");
 writeCommand(kSSD1331CommandSETCOLUMN);
 writeCommand(y);
 writeCommand(y + multi * 0x18 - 1);
@@ -335,4 +372,47 @@ for (int row = 0; row < 24; row++)
 
 }
 return 0;
+}
+
+int devSSD1331plotAngle(int angle)
+{
+	if (angle > 30)
+	{
+		angle = 30;
+	}
+	if (angle < -30)
+	{
+		angle = -30;
+	}
+	static uint8_t copyCommandBuffer[7] = {
+		kSSD1331CommandCOPY, 0x2A, 0x00, 0x5F,	0x3F,	0x28,	0x00
+	};
+	writeCommandFast(copyCommandBuffer, 7);
+	// Copy up the previous data
+	// writeCommand(kSSD1331CommandCOPY);
+	// writeCommand(0x2A);
+	// writeCommand(0x00);
+	// writeCommand(0x5F);
+	// writeCommand(0x3F);
+	// writeCommand(0x28);
+	// writeCommand(0x00);
+
+	// draw the green baseline
+	static uint8_t rectCommandBuffer[11] = {
+		kSSD1331CommandDRAWRECT, 0x5E, 0x00, 0x5F, 0x3F, 0x00, 0xFF, 0x00, 0x00, 0xFF, 0x00
+	};
+	writeCommandFast(rectCommandBuffer, 11);
+
+
+	// Draw the white plot line
+	writeCommand(kSSD1331CommandDRAWLINE);
+	writeCommand(0x5F);
+	writeCommand(0x20); //The midle
+	writeCommand(0x5F);
+	writeCommand(0x20 + angle); //The line direction
+
+	writeCommand(0xFF);
+	writeCommand(0xFF);
+	writeCommand(0xFF);
+	return 0;
 }
