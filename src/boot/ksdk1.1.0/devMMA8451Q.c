@@ -1,26 +1,20 @@
 /*
-	Authored 2016-2018. Phillip Stanley-Marbell.
-
+	Authored 2016-2018. Phillip Stanley-Marbell, Youchao Wang.
 	All rights reserved.
-
 	Redistribution and use in source and binary forms, with or without
 	modification, are permitted provided that the following conditions
 	are met:
-
 	*	Redistributions of source code must retain the above
 		copyright notice, this list of conditions and the following
 		disclaimer.
-
 	*	Redistributions in binary form must reproduce the above
 		copyright notice, this list of conditions and the following
 		disclaimer in the documentation and/or other materials
 		provided with the distribution.
-
 	*	Neither the name of the author nor the names of its
 		contributors may be used to endorse or promote products
 		derived from this software without specific prior written
 		permission.
-
 	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 	"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
 	LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
@@ -69,6 +63,86 @@ initMMA8451Q(const uint8_t i2cAddress, WarpI2CDeviceState volatile *  deviceStat
 }
 
 WarpStatus
+writeSensorRegisterMMA8451Q(uint8_t deviceRegister, uint8_t payload, uint16_t menuI2cPullupValue)
+{
+	uint8_t		payloadByte[1], commandByte[1];
+	i2c_status_t	returnValue;
+
+	switch (deviceRegister)
+	{
+		case 0x09: case 0x0a: case 0x0e: case 0x0f:
+		case 0x11: case 0x12: case 0x13: case 0x14:
+		case 0x15: case 0x17: case 0x18: case 0x1d:
+		case 0x1f: case 0x20: case 0x21: case 0x23:
+		case 0x24: case 0x25: case 0x26: case 0x27:
+		case 0x28: case 0x29: case 0x2a: case 0x2b:
+		case 0x2c: case 0x2d: case 0x2e: case 0x2f:
+		case 0x30: case 0x31:
+		{
+			/* OK */
+			break;
+		}
+
+		default:
+		{
+			return kWarpStatusBadDeviceCommand;
+		}
+	}
+
+	i2c_device_t slave =
+	{
+		.address = deviceMMA8451QState.i2cAddress,
+		.baudRate_kbps = gWarpI2cBaudRateKbps
+	};
+
+	enableI2Cpins(menuI2cPullupValue);
+
+	/*
+	 *	Wait for supply and pull-ups to settle.
+	 */
+	OSA_TimeDelay(100);
+
+	commandByte[0] = deviceRegister;
+	payloadByte[0] = payload;
+	returnValue = I2C_DRV_MasterSendDataBlocking(
+							0 /* I2C instance */,
+							&slave,
+							commandByte,
+							1,
+							payloadByte,
+							1,
+							1000);
+	if (returnValue != kStatus_I2C_Success)
+	{
+		//SEGGER_RTT_printf(0, "\r\n\tI2C write failed, error %d.\n\n", returnValue);
+		return kWarpStatusDeviceCommunicationFailed;
+	}
+
+	return kWarpStatusOK;
+}
+
+void
+configureSensorMMA8451Q(uint8_t payloadF_SETUP, uint8_t payloadCTRL_REG1, uint8_t menuI2cPullupValue)
+{
+	WarpStatus	i2cWriteStatus;
+	i2cWriteStatus = writeSensorRegisterMMA8451Q(kWarpSensorMMA8451QF_SETUP /* register address F_SETUP */,
+							payloadF_SETUP /* payload: Disable FIFO */,
+							menuI2cPullupValue);
+	if (i2cWriteStatus != kWarpStatusOK)
+	{
+		SEGGER_RTT_printf(0, "MMA8451Q Write Error, error %d", i2cWriteStatus);
+	}
+
+	i2cWriteStatus = writeSensorRegisterMMA8451Q(kWarpSensorMMA8451QCTRL_REG1 /* register address CTRL_REG1 */,
+							payloadCTRL_REG1 /* payload */,
+							menuI2cPullupValue);
+	if (i2cWriteStatus != kWarpStatusOK)
+	{
+		SEGGER_RTT_printf(0, "MMA8451Q Write Error, error %d", i2cWriteStatus);
+	}
+}
+
+WarpStatus
 readSensorRegisterMMA8451Q(uint8_t deviceRegister)
 {
 	uint8_t cmdBuf[1]	= {0xFF};
@@ -77,7 +151,7 @@ readSensorRegisterMMA8451Q(uint8_t deviceRegister)
 
 	switch (deviceRegister)
 	{
-		case 0x00: case 0x01: case 0x02: case 0x03: 
+		case 0x00: case 0x01: case 0x02: case 0x03:
 		case 0x04: case 0x05: case 0x06: case 0x09:
 		case 0x0a: case 0x0b: case 0x0c: case 0x0d:
 		case 0x0e: case 0x0f: case 0x10: case 0x11:
@@ -92,11 +166,11 @@ readSensorRegisterMMA8451Q(uint8_t deviceRegister)
 			/* OK */
 			break;
 		}
-		
+
 		default:
 		{
 			//SEGGER_RTT_printf(0, "\rreadSensorRegisterMMA8451Q() received bad deviceRegister\n");
-	
+
 			return kWarpStatusBadDeviceCommand;
 		}
 	}
@@ -118,7 +192,7 @@ readSensorRegisterMMA8451Q(uint8_t deviceRegister)
 							(uint8_t *)deviceMMA8451QState.i2cBuffer,
 							1,
 							500 /* timeout in milliseconds */);
-	
+
 	//SEGGER_RTT_printf(0, "\nI2C_DRV_MasterReceiveData returned [%d] (read register)\n", returnValue);
 
 	if (returnValue == kStatus_I2C_Success)
@@ -133,4 +207,58 @@ readSensorRegisterMMA8451Q(uint8_t deviceRegister)
 	}
 
 	return kWarpStatusOK;
+}
+
+void
+printSensorDataMMA8451Q(void)
+{
+	uint8_t readSensorRegisterValueLSB;
+	uint8_t readSensorRegisterValueMSB;
+	uint16_t readSensorRegisterValueCombined;
+	WarpStatus i2cReadStatus;
+
+	i2cReadStatus = readSensorRegisterMMA8451Q(kWarpSensorMMA8451QOUT_X_MSB);
+	if(i2cReadStatus != kWarpStatusOK)
+	{
+		SEGGER_RTT_printf(0, "MMA8451Q Read Error, error %d", i2cReadStatus);
+	}
+	readSensorRegisterValueMSB = deviceMMA8451QState.i2cBuffer[0];
+	i2cReadStatus = readSensorRegisterMMA8451Q(kWarpSensorMMA8451QOUT_X_LSB);
+	if(i2cReadStatus != kWarpStatusOK)
+	{
+		SEGGER_RTT_printf(0, "MMA8451Q Read Error, error %d", i2cReadStatus);
+	}
+	readSensorRegisterValueLSB = deviceMMA8451QState.i2cBuffer[0];
+	readSensorRegisterValueCombined = ((readSensorRegisterValueMSB & 0xFF)<<8) + (readSensorRegisterValueLSB & 0xFF);
+	SEGGER_RTT_printf(0, " %d,",readSensorRegisterValueCombined);
+
+	i2cReadStatus = readSensorRegisterMMA8451Q(kWarpSensorMMA8451QOUT_Y_MSB);
+	if(i2cReadStatus != kWarpStatusOK)
+	{
+		SEGGER_RTT_printf(0, "MMA8451Q Read Error, error %d", i2cReadStatus);
+	}
+	readSensorRegisterValueMSB = deviceMMA8451QState.i2cBuffer[0];
+	i2cReadStatus = readSensorRegisterMMA8451Q(kWarpSensorMMA8451QOUT_Y_LSB);
+	if(i2cReadStatus != kWarpStatusOK)
+	{
+		SEGGER_RTT_printf(0, "MMA8451Q Read Error, error %d", i2cReadStatus);
+	}
+	readSensorRegisterValueLSB = deviceMMA8451QState.i2cBuffer[0];
+	readSensorRegisterValueCombined = ((readSensorRegisterValueMSB & 0xFF)<<8) + (readSensorRegisterValueLSB & 0xFF);
+	SEGGER_RTT_printf(0, " %d,",readSensorRegisterValueCombined);
+
+	i2cReadStatus = readSensorRegisterMMA8451Q(kWarpSensorMMA8451QOUT_Z_MSB);
+	if(i2cReadStatus != kWarpStatusOK)
+	{
+		SEGGER_RTT_printf(0, "MMA8451Q Read Error, error %d", i2cReadStatus);
+	}
+	readSensorRegisterValueMSB = deviceMMA8451QState.i2cBuffer[0];
+	i2cReadStatus = readSensorRegisterMMA8451Q(kWarpSensorMMA8451QOUT_Z_LSB);
+	if(i2cReadStatus != kWarpStatusOK)
+	{
+		SEGGER_RTT_printf(0, "MMA8451Q Read Error, error %d", i2cReadStatus);
+	}
+	readSensorRegisterValueLSB = deviceMMA8451QState.i2cBuffer[0];
+	readSensorRegisterValueCombined = ((readSensorRegisterValueMSB & 0xFF)<<8) + (readSensorRegisterValueLSB & 0xFF);
+	SEGGER_RTT_printf(0, " %d,",readSensorRegisterValueCombined);
 }

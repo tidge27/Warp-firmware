@@ -58,7 +58,7 @@
 
 // #include "devINA219.h"
 #include "devL3GD20H.h"
-#include "devSSD1331.h"
+// #include "devSSD1331.h"
 
 
 #define					kWarpConstantStringI2cFailure		"\rI2C failed, reg 0x%02x, code %d\n"
@@ -91,25 +91,6 @@ volatile uint32_t			gWarpUartBaudRateKbps	= 1;
 volatile uint32_t			gWarpSpiBaudRateKbps	= 1;
 volatile uint32_t			gWarpSleeptimeSeconds	= 0;
 volatile WarpModeMask			gWarpMode		= kWarpModeDisableAdcOnSleep;
-
-
-
-void					sleepUntilReset(void);
-void					lowPowerPinStates(void);
-void					disableTPS82740A(void);
-void					disableTPS82740B(void);
-void					enableTPS82740A(uint16_t voltageMillivolts);
-void					enableTPS82740B(uint16_t voltageMillivolts);
-void					setTPS82740CommonControlLines(uint16_t voltageMillivolts);
-void					printPinDirections(void);
-void					dumpProcessorState(void);
-int					char2int(int character);
-void					enableSssupply(uint16_t voltageMillivolts);
-void					disableSssupply(void);
-void					activateAllLowPowerSensorModes(void);
-void					powerupAllSensors(void);
-uint8_t					readHexByte(void);
-int					read4digits(void);
 
 
 /*
@@ -274,30 +255,6 @@ enableSPIpins(void)
 	SPI_DRV_MasterConfigureBus(0 /* SPI master instance */, (spi_master_user_config_t *)&spiUserConfig, &calculatedBaudRate);
 }
 
-
-
-// void
-// disableSPIpins(void)
-// {
-// 	SPI_DRV_MasterDeinit(0);
-//
-//
-// 	/*	Warp KL03_SPI_MISO	--> PTA6	(GPI)		*/
-// 	PORT_HAL_SetMuxMode(PORTA_BASE, 6, kPortMuxAsGpio);
-//
-// 	/*	Warp KL03_SPI_MOSI	--> PTA7	(GPIO)		*/
-// 	PORT_HAL_SetMuxMode(PORTA_BASE, 7, kPortMuxAsGpio);
-//
-// 	/*	Warp KL03_SPI_SCK	--> PTB0	(GPIO)		*/
-// 	PORT_HAL_SetMuxMode(PORTB_BASE, 0, kPortMuxAsGpio);
-//
-// 	GPIO_DRV_ClearPinOutput(kWarpPinSPI_MOSI);
-// 	GPIO_DRV_ClearPinOutput(kWarpPinSPI_MISO);
-// 	GPIO_DRV_ClearPinOutput(kWarpPinSPI_SCK);
-//
-//
-// 	CLOCK_SYS_DisableSpiClock(0);
-// }
 
 
 
@@ -490,44 +447,14 @@ main(void)
 	/*
 	 *	Setup Power Manager Driver
 	 */
-	// memset(&powerManagerCallbackStructure, 0, sizeof(WarpPowerManagerCallbackStructure));
 
-
-	// warpPowerModeVlpwConfig = warpPowerModeVlprConfig;
-	// warpPowerModeVlpwConfig.mode = kPowerManagerVlpw;
-	//
-	// warpPowerModeVlpsConfig = warpPowerModeVlprConfig;
-	// warpPowerModeVlpsConfig.mode = kPowerManagerVlps;
-	//
-	// warpPowerModeWaitConfig = warpPowerModeVlprConfig;
-	// warpPowerModeWaitConfig.mode = kPowerManagerWait;
-	//
-	// warpPowerModeStopConfig = warpPowerModeVlprConfig;
-	// warpPowerModeStopConfig.mode = kPowerManagerStop;
-	//
-	// warpPowerModeVlls0Config = warpPowerModeVlprConfig;
-	// warpPowerModeVlls0Config.mode = kPowerManagerVlls0;
-	//
-	// warpPowerModeVlls1Config = warpPowerModeVlprConfig;
-	// warpPowerModeVlls1Config.mode = kPowerManagerVlls1;
-	//
-	// warpPowerModeVlls3Config = warpPowerModeVlprConfig;
-	// warpPowerModeVlls3Config.mode = kPowerManagerVlls3;
-	//
-	// warpPowerModeRunConfig.mode = kPowerManagerRun;
-	//
-	// POWER_SYS_Init(	&powerConfigs,
-	// 		sizeof(powerConfigs)/sizeof(power_manager_user_config_t *),
-	// 		&callbacks,
-	// 		sizeof(callbacks)/sizeof(power_manager_callback_user_config_t *)
-	// 		);
 
 
 
 	/*
 	 *	Switch CPU to Very Low Power Run (VLPR) mode
 	 */
-	// warpSetLowPowerMode(kWarpPowerModeVLPR, 0);
+	warpSetLowPowerMode(kWarpPowerModeVLPR, 0);
 
 
 
@@ -572,37 +499,9 @@ INT_SYS_EnableIRQGlobal();
 	 SEGGER_RTT_WriteString(0, "Before");
 	// initINA219(	0x40	/* i2cAddress */,	&deviceINA219State	);
 	initL3GD20H(0x6B, &deviceL3GD20HState);
-		devSSD1331init();
-		// int x = 0;
-		// int y = 0;
-		// for (int i = 0; i < 3; i++) {
-		// 	devSSD1331printDigit(i, x , y, 1);
-		// 	OSA_TimeDelay(1000);
-		// 	x += 31;
-		// 	if(i == 2)
-		// 	{
-		// 		x=0;
-		// 		y=48;
-		// 	}
-		//
-		// }
 
 
-		// for(int h = 0;h<10;h++)
-		// {
-		// 	devSSD1331printDigit(h, 1 , 8, 1);
-		// 	for(int t = 0;t<10;t++)
-		// 	{
-		// 		devSSD1331printDigit(t, 32 , 8, 1);
-		// 		for(int u = 0;u<10;u++)
-		// 		{
-		// 			devSSD1331printDigit(u, 63 , 8, 1);
-		// 			OSA_TimeDelay(1000);
-		// 		}
-		// 	}
-		// }
-
-
+OSA_TimeDelay(1000);
 		configureSensorL3GD20H(0b11111111,/* ODR 800Hz, Cut-off 100Hz, see table 21, normal mode, x,y,z enable */
 										0b00100000,
 										0b00000000,/* normal mode, disable FIFO, disable high pass filter */
@@ -621,22 +520,30 @@ INT_SYS_EnableIRQGlobal();
 			// }
 			// section for calculating the wobble angle
 
-			// uint32_t sensor_timestamp = OSA_TimeGetMsec();
-			// uint8_t gyro_reading =
-			// uint32_t anglex100 = ()(gyro_reading * (sensor_timestamp - previous_timestamp))*180/3.14159) + previous_angle;
 
 			// enableI2Cpins(65535 /* pullupValue*/);
 			// readSensorRegisterL3GD20H(0x0F);
-			// SEGGER_RTT_printf(0, "Value x:	%x\n", deviceL3GD20HState.i2cBuffer);
-			// SEGGER_RTT_printf(0, "Value d:	%d\n", deviceL3GD20HState.i2cBuffer);
-			// SEGGER_RTT_printf(0, "Value d[0]:	%d\n", deviceL3GD20HState.i2cBuffer[0]);
-			// SEGGER_RTT_printf(0, "Value d[1]:	%d\n", deviceL3GD20HState.i2cBuffer[1]);
-			//
 			// disableI2Cpins();
+			// uint32_t milliamps = (deviceL3GD20HState.i2cBuffer[1] | deviceL3GD20HState.i2cBuffer[0] << 8) / 20;				// 	SEGGER_RTT_printf(0, "Cadence:	%d\n", cadence);
+			// SEGGER_RTT_printf(0, "current:	%dmA\n", milliamps);				// 	devSSD1331printDigit((cadence/100)%10, 39 , 8, 0);
+
 			enableI2Cpins(65535 /* pullupValue*/);
-printSensorDataL3GD20H();
-disableI2Cpins();
-			OSA_TimeDelay(1000);
+			readSensorRegisterL3GD20H(0x28);
+			uint8_t xlsb = deviceL3GD20HState.i2cBuffer[0];
+			readSensorRegisterL3GD20H(0x29);
+			uint8_t xmsb = deviceL3GD20HState.i2cBuffer[0];
+			disableI2Cpins();
+
+			int16_t gyro_reading = (int16_t)((xmsb)<<8) | (xlsb);
+			gyro_reading *= 0.00875F;
+
+			SEGGER_RTT_printf(0, "twist:	%d\n", gyro_reading);
+			uint32_t sensor_timestamp = OSA_TimeGetMsec();
+			// (x1000/1000)
+			int anglex1000 = (gyro_reading * (sensor_timestamp - previous_timestamp)) + previous_angle;
+			SEGGER_RTT_printf(0, "Angle:	%d deg.\n", anglex1000/1000);
+			previous_timestamp = sensor_timestamp;
+			previous_angle = anglex1000;
 
 
 		}

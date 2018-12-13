@@ -207,11 +207,11 @@ readSensorRegisterL3GD20H(uint8_t deviceRegister)
 
 	if (returnValue == kStatus_I2C_Success)
 	{
-		SEGGER_RTT_printf(0, "\r[0x%02x]	0x%02x\n", cmdBuf[0], deviceL3GD20HState.i2cBuffer[0]);
+		// SEGGER_RTT_printf(0, "\r[0x%02x]	0x%02x\n", cmdBuf[0], deviceL3GD20HState.i2cBuffer[0]);
 	}
 	else
 	{
-		// SEGGER_RTT_printf(0, kWarpConstantStringI2cFailure, cmdBuf[0], returnValue);
+		SEGGER_RTT_printf(0, "\rFAIL: [0x%02x]	0x%02x\n", cmdBuf[0], returnValue);
 
 		return kWarpStatusDeviceCommunicationFailed;
 	}
