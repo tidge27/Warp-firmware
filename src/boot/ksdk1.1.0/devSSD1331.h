@@ -45,5 +45,6 @@ typedef enum
 
 int	devSSD1331init(void);
 int	devSSD1331striperect(void);
-int devSSD1331printDigit(int digit, int x, int y, uint8_t big_digit);
+int devSSD1331printDigit(int digit, int x, int y, uint8_t big_digit, uint8_t digit_color);
 int devSSD1331plotAngle(int angle);
+int devSSD1331plotHigh(int high);

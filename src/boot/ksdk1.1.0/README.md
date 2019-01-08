@@ -1,15 +1,5 @@
 ## Overview
-The Warp firmware is intended to be a demonstration and meassurement environment for testing the Warp hardware. 
-
-It provides facilities that we use to perform tests on the hardware such as activating the different programmable voltage regulator output voltages (16 different supply voltage levels),
-activating the programmable I2C pull-ups to different values (65536 different settings), changing the I2C and SPI bit rate, changing the Cortex-M0 clock frequency,
-and so on. Having a menu interface allows us to perform various experiments without having to re-compile and load firmware to the system for each experiment.
-
-The Warp firmware is a tool for experimentation. You can also use it as a baseline for building real applications by modifying it to remove the menu-driven functionality and linking in only the sensor drivers you need.
-
-The core of the firmware is in `warp-kl03-ksdk1.1-boot.c`. The drivers for the individual sensors are in `devXXX.c` for sensor `XXX`. For example,
-`devADXL362.c` for the ADXL362 3-axis accelerometer. The section below briefly describes all the source files in this directory. 
-
+This is the firmware for the bike cadence and wobble sensor.
 
 ## Source File Descriptions
 

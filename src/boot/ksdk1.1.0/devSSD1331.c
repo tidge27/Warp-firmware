@@ -21,9 +21,7 @@ enum
 	kSSD1331PinSCK		= GPIO_MAKE_PIN(HW_GPIOA, 9),
 	kSSD1331PinCSn		= GPIO_MAKE_PIN(HW_GPIOB, 13),
 	kSSD1331PinDC		= GPIO_MAKE_PIN(HW_GPIOA, 12),
-	// kSSD1331PinRST		= GPIO_MAKE_PIN(HW_GPIOA, 2),
 	kSSD1331PinRST		= GPIO_MAKE_PIN(HW_GPIOB, 0),
-	// The above was B0
 };
 
 static int
@@ -61,76 +59,60 @@ writeCommand(uint8_t commandByte)
 	return status;
 }
 
+
+
+// Write data to the screen.  This is denoted by kSSD1331PinDC being kept high
+// when the data is being transferred over the I2C bus.
 static int
 writeData(uint8_t *  dataPayloadBytes, int payloadLength)
 {
 	spi_status_t status;
-	// uint8_t		dataInBuffer[payloadLength];
 
-	/*
-	 *	Drive /CS low.
-	 *
-	 *	Make sure there is a high-to-low transition by first driving high, delay, then drive low.
-	 */
 	GPIO_DRV_SetPinOutput(kSSD1331PinCSn);
-	OSA_TimeDelay(1);
 	GPIO_DRV_ClearPinOutput(kSSD1331PinCSn);
-
-	/*
-	 *	Drive DC high (data).
-	 */
 	GPIO_DRV_SetPinOutput(kSSD1331PinDC);
 
-	// status = SPI_DRV_MasterTransferBlocking(0		/* master instance */,
+	// Use the non-blocking SPI transfer.  This allows interrupts to still occur
+	// when writing data.  This prevents any interrupt being missed.
 	status = SPI_DRV_MasterTransfer(0		/* master instance */,
 						NULL		/* spi_master_user_config_t */,
 						dataPayloadBytes,
 						NULL,
 						payloadLength	/* transfer size */
-						// 1000		/* timeout in microseconds (unlike I2C which is ms) */);
 					);
 
 	while(SPI_DRV_MasterGetTransferStatus(0, NULL) == kStatus_SPI_Busy){}
-	/*
-	 *	Drive /CS high
-	 */
+	// Wait untill the transfer is finsihed before continuing.
+
 	GPIO_DRV_SetPinOutput(kSSD1331PinCSn);
 	return status;
 }
 
+
+// Write commands to the screen.  This is faster as a whole bunch of bytes are
+// transferred in one batch, without continually toggling the CSn and DC pins.
 static int
 writeCommandFast(uint8_t *  dataPayloadBytes, int payloadLength)
 {
 	spi_status_t status;
-	// uint8_t		dataInBuffer[payloadLength];
 
-	/*
-	 *	Drive /CS low.
-	 *
-	 *	Make sure there is a high-to-low transition by first driving high, delay, then drive low.
-	 */
 	GPIO_DRV_SetPinOutput(kSSD1331PinCSn);
 	OSA_TimeDelay(1);
 	GPIO_DRV_ClearPinOutput(kSSD1331PinCSn);
-
-	/*
-	 *	Drive DC high (data).
-	 */
 	GPIO_DRV_ClearPinOutput(kSSD1331PinDC);
 
-	// status = SPI_DRV_MasterTransferBlocking(0		/* master instance */,
+	// Use the non-blocking SPI transfer.  This allows interrupts to still occur
+	// when writing data.  This prevents any interrupt being missed.
 	status = SPI_DRV_MasterTransfer(0		/* master instance */,
 						NULL		/* spi_master_user_config_t */,
 						dataPayloadBytes,
 						NULL,
 						payloadLength	/* transfer size */
-						// 1000		/* timeout in microseconds (unlike I2C which is ms) */);
 					);
 
 	while(SPI_DRV_MasterGetTransferStatus(0, NULL) == kStatus_SPI_Busy){}
-	/*
-	 *	Drive /CS high
-	 */
+	// Wait untill the transfer is finsihed before continuing.
+
 	GPIO_DRV_SetPinOutput(kSSD1331PinCSn);
 	return status;
 }
@@ -177,7 +159,7 @@ devSSD1331init(void)
 	writeCommand(kSSD1331CommandSETREMAP);		// 0xA0
 	// writeCommand(0x72);				// RGB Color, 65k color formatt
 	// writeCommand(0x32);				// RGB Color, 256 color formatt
-	writeCommand(0x33);				// RGB Color, 256 color formatt
+	writeCommand(0x33);				// RGB Color, 256 color formatt, differnt angle
 	writeCommand(kSSD1331CommandSTARTLINE);		// 0xA1
 	writeCommand(0x0);
 	writeCommand(kSSD1331CommandDISPLAYOFFSET);	// 0xA2
@@ -251,19 +233,14 @@ devSSD1331init(void)
  	 writeCommand(0x3F);
 
 	 writeCommand(0x00);
- 	 writeCommand(0xFF);
+ 	 writeCommand(0x00);
 	 writeCommand(0x00);
 
 	 writeCommand(0x00);
-	 writeCommand(0xFF);
+	 writeCommand(0x00);
 	 writeCommand(0x00);
 
-
-
-//	SEGGER_RTT_WriteString(0, "\r\n\tDone with draw rectangle...\n");
-
-
-
+	 // Set the whole screen to black
 	return 0;
 }
 
@@ -303,7 +280,7 @@ int devSSD1331striperect(void)
 	return 0;
 }
 
-int devSSD1331printDigit(int digit, int x, int y, uint8_t big_digit)
+int devSSD1331printDigit(int digit, int x, int y, uint8_t big_digit, uint8_t digit_color)
 {
 	// SEGGER_RTT_WriteString(0, "\r\n\tprint digitty\n");
 	// uint8_t imageBuffer[768];
@@ -312,6 +289,8 @@ int devSSD1331printDigit(int digit, int x, int y, uint8_t big_digit)
 	if(big_digit){
 		multi = 2;
 	}
+	// This array contains the image data for each of the digits 0-9.  They are
+	// stored as binary 0/1 for each pixel in the 16x 24 digits.
 const uint8_t numBuffer[10][48] = {
 	{0x00, 0x00, 0x07, 0xE0, 0x0F, 0xF0, 0x1C, 0x38, 0x38, 0x18, 0x30, 0x1C, 0x70, 0x3C, 0x70, 0x7C, 0x70, 0x6C, 0x70, 0xCC, 0x60, 0x8C, 0x61, 0x8E, 0x63, 0x0E, 0x62, 0x0C, 0x76, 0x0C, 0x7C, 0x0C, 0x7C, 0x0C, 0x38, 0x1C, 0x38, 0x1C, 0x38, 0x18, 0x1C, 0x38, 0x0F, 0xF0, 0x07, 0xC0, 0x00, 0x00},
 	{0x00, 0x00, 0x03, 0xC0, 0x0F, 0xC0, 0x1F, 0xC0, 0x39, 0xC0, 0x20, 0xC0, 0x00, 0xC0, 0x00, 0xC0, 0x00, 0xC0, 0x00, 0xC0, 0x00, 0xC0, 0x00, 0xC0, 0x00, 0xC0, 0x00, 0xC0, 0x00, 0xC0, 0x00, 0xC0, 0x00, 0xC0, 0x00, 0xC0, 0x00, 0xC0, 0x01, 0xC0, 0x01, 0xE0, 0x1F, 0xFE, 0x1F, 0xFC, 0x00, 0x00},
@@ -324,14 +303,18 @@ const uint8_t numBuffer[10][48] = {
 	{0x00, 0x00, 0x0F, 0xE0, 0x1F, 0xF8, 0x38, 0x38, 0x30, 0x1C, 0x70, 0x1C, 0x70, 0x0C, 0x70, 0x1C, 0x30, 0x1C, 0x18, 0x38, 0x0F, 0xE0, 0x0F, 0xE0, 0x1C, 0x78, 0x30, 0x1C, 0x70, 0x0C, 0x60, 0x0C, 0x60, 0x0E, 0x60, 0x0C, 0x70, 0x0C, 0x70, 0x1C, 0x38, 0x38, 0x1F, 0xF8, 0x0F, 0xE0, 0x00, 0x00},
 	{0x00, 0x00, 0x07, 0xE0, 0x1F, 0xF0, 0x1C, 0x18, 0x38, 0x1C, 0x30, 0x0C, 0x30, 0x0E, 0x70, 0x0E, 0x70, 0x0E, 0x30, 0x0E, 0x30, 0x0E, 0x38, 0x1E, 0x1C, 0x3E, 0x1F, 0xF6, 0x07, 0xC6, 0x00, 0x06, 0x00, 0x0E, 0x00, 0x0C, 0x00, 0x1C, 0x00, 0x18, 0x10, 0x78, 0x1F, 0xF0, 0x0F, 0xC0, 0x00, 0x00}
 };
-// SEGGER_RTT_WriteString(0, "\r\n\tSetup zero\n");
-writeCommand(kSSD1331CommandSETCOLUMN);
-writeCommand(y);
-writeCommand(y + multi * 0x18 - 1);
-// Set the columns to scan over
-writeCommand(kSSD1331CommandSETROW);
-writeCommand(x);
-writeCommand(x + multi * 0x10 -1);
+
+uint8_t setupBuffer[6] = {kSSD1331CommandSETCOLUMN, 0x00, 0x00, kSSD1331CommandSETROW, 0x00, 0x00};
+setupBuffer[1] = y;
+setupBuffer[2] = (y + multi * 0x18 - 1);
+setupBuffer[4] = x;
+setupBuffer[5] = (x + multi * 0x10 -1);
+
+// Set the dimensions and position of the pixels on the screen to be written to
+writeCommandFast(setupBuffer, 6);
+
+
+// Iterate over the rows of the digit.
 uint8_t maskbit = 0x00;
 for (int row = 0; row < 24; row++)
 {
@@ -347,11 +330,9 @@ for (int row = 0; row < 24; row++)
 		{
 
 			if ((numBuffer[digit][not_r+2*row]&maskbit)>0) {
-				imageBuffer[r*8+i] = (0xFF);
-				// imageBuffer[r*16+2*i+1] = (0x00);
+				imageBuffer[r*8+i] = (digit_color);
 			} else {
 				imageBuffer[r*8+i] = (0x00);
-				// imageBuffer[r*16+2*i+1] = (0x00);
 			}
 			if(maskbit > 0x01){
 				maskbit = maskbit >> 1;
@@ -374,6 +355,8 @@ for (int row = 0; row < 24; row++)
 return 0;
 }
 
+// This function plots a row on the bottom of the graph, after shifting the
+// graph up by one unit
 int devSSD1331plotAngle(int angle)
 {
 	if (angle > 30)
@@ -384,35 +367,49 @@ int devSSD1331plotAngle(int angle)
 	{
 		angle = -30;
 	}
+
 	static uint8_t copyCommandBuffer[7] = {
-		kSSD1331CommandCOPY, 0x2A, 0x00, 0x5F,	0x3F,	0x28,	0x00
+		kSSD1331CommandCOPY, 0x29, 0x00, 0x5F,	0x3F,	0x28,	0x00
 	};
 	writeCommandFast(copyCommandBuffer, 7);
-	// Copy up the previous data
-	// writeCommand(kSSD1331CommandCOPY);
-	// writeCommand(0x2A);
-	// writeCommand(0x00);
-	// writeCommand(0x5F);
-	// writeCommand(0x3F);
-	// writeCommand(0x28);
-	// writeCommand(0x00);
 
-	// draw the green baseline
+
 	static uint8_t rectCommandBuffer[11] = {
-		kSSD1331CommandDRAWRECT, 0x5E, 0x00, 0x5F, 0x3F, 0x00, 0xFF, 0x00, 0x00, 0xFF, 0x00
+		kSSD1331CommandDRAWRECT, 0x5F, 0x00, 0x5F, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	};
 	writeCommandFast(rectCommandBuffer, 11);
 
 
 	// Draw the white plot line
-	writeCommand(kSSD1331CommandDRAWLINE);
-	writeCommand(0x5F);
-	writeCommand(0x20); //The midle
-	writeCommand(0x5F);
-	writeCommand(0x20 + angle); //The line direction
+	static uint8_t lineCommandBuffer[8] = {
+		kSSD1331CommandDRAWLINE, 0x5F, 0x20, 0x5F, 0x20, 0xFF, 0xFF, 0xFF
+	};
+	lineCommandBuffer[4] = 0x20 + angle;
+	writeCommandFast(lineCommandBuffer, 8);
 
-	writeCommand(0xFF);
-	writeCommand(0xFF);
-	writeCommand(0xFF);
+
 	return 0;
+}
+
+
+// This is used to plot / clear the lines above and below the numeric display
+// to indicate to the rider whether to change up or down a gear
+int devSSD1331plotHigh(int high)
+{
+	static uint8_t clearRectCommandBuffer[11] = {
+		kSSD1331CommandDRAWRECT, 0x04, 0x09, 0x23, 0x34, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	};
+	static uint8_t lowRectCommandBuffer[11] = {
+		kSSD1331CommandDRAWRECT, 0x22, 0x09, 0x23, 0x34, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
+	};
+	static uint8_t highRectCommandBuffer[11] = {
+		kSSD1331CommandDRAWRECT, 0x04, 0x09, 0x05, 0x34, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
+	};
+	writeCommandFast(clearRectCommandBuffer, 11);
+
+	if(high==1){
+		writeCommandFast(highRectCommandBuffer, 11);
+	} else if(high==2) {
+		writeCommandFast(lowRectCommandBuffer, 11);
+	}
 }

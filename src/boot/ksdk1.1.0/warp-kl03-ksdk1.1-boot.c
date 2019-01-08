@@ -36,6 +36,33 @@
 	ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 	POSSIBILITY OF SUCH DAMAGE.
 */
+
+
+
+/*
+	This is a modified version of the Warp Firmware, as described above.
+
+	This project uses an accelerometer, gyro, OLED display, and hall effect sensor
+	to graphically display the wobble, and the cadence of a bike when attached to
+	the frame.
+
+	There are two important parts to the code in this file:
+	(1) The while loop which continually updates the display every 30ms.
+	(2) The Interupt handler for PORT A which is triggered when the magnet passes by
+			the hall effect sensor.
+
+	These two parts are documented with inline comments
+
+	There are also 3 driver files: devL3GD20H.h, devMMA8451Q.h, devSSD1331.h
+	These are modified versions of drivers available in the warp firmware, but
+	include aditional functions, and modifications.  These are largeley aimed at
+	increasing the speed to which data is read from and written to the devices,
+	since the performance of the code is important to retain a high refresh rate.
+		Some of these functions are extremely specific, and could perhaps have been
+	better placed for readability of the code.
+
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -74,9 +101,10 @@ volatile WarpI2CDeviceState deviceMMA8451QState;
 volatile uint32_t last_milliseconds;
 volatile uint32_t cadence;
 volatile uint32_t last_cadence;
+volatile uint32_t writing_cadence;
 
 volatile uint32_t previous_timestamp = 0;
-volatile uint32_t previous_angle = 0;
+volatile float previous_angle = 0;
 
 volatile uint8_t time_delta;
 
@@ -406,7 +434,7 @@ main(void)
 	SEGGER_RTT_ConfigUpBuffer(0, NULL, NULL, 0, SEGGER_RTT_MODE_NO_BLOCK_TRIM);
 
 
-	SEGGER_RTT_WriteString(0, "\n\n\n\rBooting Warp, in 3... ");
+	SEGGER_RTT_WriteString(0, "\n\n\n\rBooting in 3... ");
 	OSA_TimeDelay(500);
 	SEGGER_RTT_WriteString(0, "2... ");
 	OSA_TimeDelay(500);
@@ -502,14 +530,13 @@ INT_SYS_EnableIRQGlobal();
 	/*
 	 *	Initialize all the sensors
 	 */
-	 SEGGER_RTT_WriteString(0, "Before");
-	// initINA219(	0x40	/* i2cAddress */,	&deviceINA219State	);
-	initL3GD20H(0x6B, &deviceL3GD20HState);
-	initMMA8451Q(0x1D, &deviceMMA8451QState);
-	devSSD1331init();
+		SEGGER_RTT_WriteString(0, "Initialising sensors and display...\n");
+		initL3GD20H(0x6B, &deviceL3GD20HState);
+		initMMA8451Q(0x1D, &deviceMMA8451QState);
+		devSSD1331init();
 
 
-OSA_TimeDelay(1000);
+    OSA_TimeDelay(1000);
 		configureSensorL3GD20H(0b11111111,/* ODR 800Hz, Cut-off 100Hz, see table 21, normal mode, x,y,z enable */
 														0b00100000,
 														0b00000000,/* normal mode, disable FIFO, disable high pass filter */
@@ -519,32 +546,87 @@ OSA_TimeDelay(1000);
 														0x01,/* Normal read 8bit, 800Hz, normal, active mode */
 														65535
 														);
-		uint8_t first_time = 0x02;
+
+
 		while (1)
 		{
-			// SEGGER_RTT_WriteString(0, "while");
-			// Do all this if we want it to display the cadence
-			if (last_cadence != cadence)
-			{
-				SEGGER_RTT_printf(0, "Cadence:	%d\n", cadence);
-				devSSD1331printDigit((cadence/100)%10, 39 , 8, 0);
-				// devSSD1331plotAngle(previous_angle/1000); //Hack to make it look smoother
-				devSSD1331printDigit((cadence/10)%10, 24 , 8, 0);
-				// devSSD1331plotAngle(previous_angle/1000);
-				devSSD1331printDigit((cadence)%10, 9 , 8, 0);
-				// devSSD1331plotAngle(previous_angle/1000);
-				last_cadence = cadence;
+			uint32_t sensor_timestamp = OSA_TimeGetMsec();
+
+			// Wait in this while loop for 30ms to pass since the last sensor reading.
+			// This is where the display's digits will be updated.
+			while (sensor_timestamp < previous_timestamp +  30 && sensor_timestamp > previous_timestamp) {
+				sensor_timestamp = OSA_TimeGetMsec();
+				// SEGGER_RTT_printf(0, "I still got time, start: %d \n", sensor_timestamp);
+
+				// Check to see if the cadence on the screen is up-to-date.
+				if (last_cadence != cadence)
+				{
+					uint32_t cadence_print_start = OSA_TimeGetMsec();
+
+					// The block below determines the color of the numeric display.  Since
+					// the display is set to the 256 color mode, additional speed comes at
+					// the expense of limited color resolution.  This code selects green
+					// for a cadence between 80 and 100, and fades to red below 70, and
+					// above 110.
+					uint8_t digit_color = 0x1C;
+
+					// Use 'writing_cadence' variable, to ensure there are no errors with
+					// the value of cadence changing half way though it being written to
+					// the screen
+					writing_cadence = cadence;
+					uint8_t color_mag = 0;
+
+					if (writing_cadence > 100)
+					{
+						// Inform the user that they need to change up a gear, by displaying
+						// the horizontal line above the cadence reading
+						devSSD1331plotHigh(1);
+						color_mag = writing_cadence-100;
+					}
+					else if (writing_cadence < 80)
+					{
+						// Inform the user that they need to change down a gear, by displaying
+						// the horizontal line above the cadence reading
+						devSSD1331plotHigh(2);
+						color_mag = 80 - writing_cadence;
+					} else {
+						// Inform the user that their gear selection is sensible, by clearing
+						// the gear suggestion lines.
+						devSSD1331plotHigh(0);
+					}
+					if(color_mag > 14) {
+						color_mag = 14;
+					}
+					if(color_mag%2){
+						color_mag = color_mag/2;
+						digit_color = digit_color - ((color_mag+1) << 3) + (color_mag << 5);
+					} else {
+						color_mag = color_mag/2;
+						digit_color = digit_color - (color_mag << 3) + (color_mag << 5);
+					}
+
+					// Write each digit to the screen.  Specifying the number (0-9),
+					// the coordinates, the size, and the color
+					devSSD1331printDigit((writing_cadence/100)%10, 39 , 8, 0, digit_color);
+					devSSD1331printDigit((writing_cadence/10)%10, 24 , 8, 0, digit_color);
+					devSSD1331printDigit((writing_cadence)%10, 9 , 8, 0, digit_color);
+
+				last_cadence = writing_cadence;
+				// SEGGER_RTT_printf(0, "Milliseconds to print angle: %d\n", OSA_TimeGetMsec() - cadence_print_start);
+				sensor_timestamp = OSA_TimeGetMsec();
+			}
+				// SEGGER_RTT_printf(0, "I still got time, end: %d \n", sensor_timestamp);
 			}
 
+			// The time since the last reading has now ben 30ms, since the while loop has exited.
+			// Read the sensors, and calculate the angles.  Then update the live plot.
 
 			// section for calculating the wobble angle
+			uint32_t sensor_reading_start = OSA_TimeGetMsec();
 
 
-			// enableI2Cpins(65535 /* pullupValue*/);
-			// readSensorRegisterL3GD20H(0x0F);
-			// disableI2Cpins();
-			// uint32_t milliamps = (deviceL3GD20HState.i2cBuffer[1] | deviceL3GD20HState.i2cBuffer[0] << 8) / 20;				// 	SEGGER_RTT_printf(0, "Cadence:	%d\n", cadence);
-			// SEGGER_RTT_printf(0, "current:	%dmA\n", milliamps);				// 	devSSD1331printDigit((cadence/100)%10, 39 , 8, 0);
+
+			// Start reading from the I2C devices here:
 
 			enableI2Cpins(65535 /* pullupValue*/);
 			readSensorRegisterL3GD20H(0x28);
@@ -555,9 +637,8 @@ OSA_TimeDelay(1000);
 			int16_t gyro_reading = (int16_t)((xmsb)<<8) | (xlsb);
 			gyro_reading *= 0.00875F;
 
-
 			// enableI2Cpins(65535 /* pullupValue*/);
-			// x msb = 64*g
+			// y msb = 64*g
 			readSensorRegisterMMA8451Q(0x01);
 			int8_t yaccel = (int8_t)deviceMMA8451QState.i2cBuffer[0];
 			// z msb = 64*g
@@ -565,52 +646,77 @@ OSA_TimeDelay(1000);
 			int8_t zaccel = (int8_t)deviceMMA8451QState.i2cBuffer[0];
 			disableI2Cpins();
 
+			// Finished reading from the I2C devices!
+
+
+
 			float adjustval = 0;
 			if (abs(zaccel)>abs(yaccel))
 			{
-				adjustval = (float)yaccel*40.0/abs((float)zaccel);
-				// This is a very crude approximation for arctan() for the small angles I am looking at
+				adjustval = (float)yaccel*57.29578/abs((float)zaccel);
+				// This is a very crude linear approximation for arctan() for the small angles I am looking at
+				// This if statement first checks that the zaccel > yaccel, to make sure that the angle is less than 45deg
+				// from vertical, since anything outisde of this would not be at all meaningful.
 			}
 
 			float accelmag = abs((float)(zaccel*zaccel + yaccel*yaccel))/4096.0;
-			// SEGGER_RTT_printf(0, "%d  %d  %d  %d  \n", yaccel, zaccel, (int)adjustval*100, (int)accelmag*100);
-			if (accelmag < 0.25 || accelmag > 4.0)
-			{
-				// SEGGER_RTT_WriteString(0, "RUBBISH:  ");
-				accelmag = 0;
+			// This value is the magnitude of the acceleration in the z,y plane.  This
+			// is later used to ensure that the value is reasonably close to g, and
+			// hence due to gravity, not wild movements of the device.
+
+
+			if (sensor_timestamp < previous_timestamp) {
+				previous_timestamp = 0;
+				// Avoid any errors if the clock counter has looped
 			}
 
-			// SEGGER_RTT_printf(0, "%d  %d  %d  %d  \n", yaccel, zaccel, (int)adjustval*100, (int)accelmag*100);
-			uint32_t sensor_timestamp = OSA_TimeGetMsec();
-			// (x1000/1000) milliseconds cancel out the fact that degrees x1000 are stored
-			int anglex1000 = (gyro_reading * (sensor_timestamp - previous_timestamp)) + previous_angle;
+			// convert milliseconds to seconds
+			// Typecast the timestamp as a float, ensures that the angle is calculated correctly
+			float angle = (gyro_reading * (float)(sensor_timestamp - previous_timestamp)/1000.0) + previous_angle;
+			// The angle calculated iteratively from the previous value, with only the gyro reading incorporated
 
-			//  Checks that the magnitude of the accelration is close to 1g.  This stops bad measuremtns affecting the claulcated angle
+
 			if (accelmag > 0.5 && accelmag < 2.0)
 			{
-				anglex1000 *= 0.9;
-				anglex1000 += adjustval*0.1*1000;
+				angle *= 0.99;
+				angle += adjustval*0.01;
+				//  Checks that the magnitude of the accelration is close to 1g.  This
+				// stops bad measuremtns affecting the calculated angle
+				// If so, the angle from the accelerometer affects 1% of the angle reading.
 			}
 
 
+			// SEGGER_RTT_printf(0, "%d, %d, %d, %d, %d, %d\n", sensor_timestamp - previous_timestamp, zaccel, yaccel, gyro_reading, (int)angle, adjustval);
 
-			devSSD1331plotAngle(anglex1000/1000);
+			// End of angle read and calculate iteration
+			// SEGGER_RTT_printf(0, "Milliseconds to read and calculate angle: %d\n", OSA_TimeGetMsec() - sensor_reading_start);
 
-			// if (first_time)
-			// {
-			// 	devSSD1331plotAngle(anglex1000/1000);
-			// 	first_time -= 1;
-			// 	time_delta = (sensor_timestamp - previous_timestamp)
-			// } else {
-			// 	uint8_t plot_length(((sensor_timestamp - previous_timestamp) + time_delta / 2) / time_delta)
-			// }
 
-			SEGGER_RTT_printf(0, "%d deg.\n", anglex1000/1000);
+			uint32_t sensor_plot_start = OSA_TimeGetMsec();
+
+
+g
+
+
+			int rounded_angle = (int)angle;
+			devSSD1331plotAngle(rounded_angle);
+			// Plot the angle (to the nearest degree) on the screen, using the above
+			// function.  The function accepts an integer, so the angle (a float) is
+			// converted to the rounded_angle variable which is an integer.
+
+
+			// Plot angle to the nearest degree (rounds down always)
+			// SEGGER_RTT_printf(0, "Milliseconds to plot angle: %d\n", OSA_TimeGetMsec() - sensor_plot_start);
+
+
+
+			// SEGGER_RTT_printf(0, "%d deg.\n", rounded_angle);
+
+
 			previous_timestamp = sensor_timestamp;
-			previous_angle = anglex1000;
-
-
-
+			previous_angle = angle;
+			// Update some of the variables for the iterative algorithm,  These could
+			// be changed to arrays to improve the readability of the code
 		}
 
 	// }
