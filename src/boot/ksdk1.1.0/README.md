@@ -2,6 +2,15 @@
 # Overview
 This is the firmware for the bike cadence and wobble sensor.
 
+Thomas Garry
+Emmanuel College
+twg32
+
+
+This Readme.md shows the information necessary to reproduce the bike cadence meter, when viewed in conjunction with the git repo, forked from the warp firmware git repo.  
+
+Branch is tidge27/warp_firmware/working_gyro
+
 ## hardware
 This firmware is tried and tested with the FRDM KL03 development board.  
 
